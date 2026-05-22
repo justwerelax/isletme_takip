@@ -269,7 +269,7 @@ $totalSalary = array_sum(array_column(array_filter($activeStaff, fn($s) => $s['s
                                                 Hakediş
                                                 <small>
                                                     (<?= $s['days_elapsed'] ?> gün
-                                                    <?php if ($s['start_date'] && date('Ym', strtotime($s['start_date'])) === sprintf('%04d%02d', $selectedYear, $selectedMonth)): ?>
+                                                    <?php if ($s['start_date'] && date('Ym', strtotime($s['start_date'])) === sprintf('%04d%02d', $selectedYear, $selectedMonth) && (int)date('j', strtotime($s['start_date'])) > 1): ?>
                                                         · <?= date('d.m', strtotime($s['start_date'])) ?>'den itibaren
                                                     <?php endif; ?>
                                                     × günlük oran)
