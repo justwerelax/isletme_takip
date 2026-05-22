@@ -86,12 +86,11 @@ $monthNames = ['','Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','A�
                 </div>
             </div>
 
-            <!-- POS bakiyesi — otomatik -->
-            <div class="calc-field calc-field-auto">
-                <label>Kalan POS Bakiyesi</label>
-                <div class="calc-auto-val" id="calcPosVal">
-                    <?= Calculator::money($posNetBalance) ?>
-                </div>
+            <!-- POS bakiyesi — elle girilir, kaydedilir -->
+            <div class="calc-field">
+                <label>Kalan POS Bakiyesi <small style="color:var(--text-muted);font-weight:400;">(elle gir)</small></label>
+                <input type="text" id="calcPos" class="calc-input" placeholder="0,00"
+                       oninput="calcUpdate()" inputmode="decimal">
             </div>
 
             <!-- Banka -->
@@ -129,8 +128,19 @@ $monthNames = ['','Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','A�
 
 <script>
 const calcBaseVal = <?= $summary ? (float)$summary['available_after_advances'] : 0 ?>;
-const calcPosVal  = <?= round($posNetBalance, 2) ?>;
+
 document.addEventListener('DOMContentLoaded', function() {
+    // localStorage'dan kaydedilmiş değerleri geri yükle
+    const saved = {
+        pos:   localStorage.getItem('calc_pos')   ?? '',
+        bank:  localStorage.getItem('calc_bank')  ?? '',
+        cash:  localStorage.getItem('calc_cash')  ?? '',
+        extra: localStorage.getItem('calc_extra') ?? '',
+    };
+    if (saved.pos)   document.getElementById('calcPos').value   = saved.pos;
+    if (saved.bank)  document.getElementById('calcBank').value  = saved.bank;
+    if (saved.cash)  document.getElementById('calcCash').value  = saved.cash;
+    if (saved.extra) document.getElementById('calcExtra').value = saved.extra;
     calcUpdate();
 });
 
@@ -203,11 +213,18 @@ function calcExtraBlur(el) {
 }
 
 function calcUpdate() {
+    const pos   = parseMoney(document.getElementById('calcPos').value);
     const bank  = parseMoney(document.getElementById('calcBank').value);
     const cash  = parseMoney(document.getElementById('calcCash').value);
     const extra = parseSum(document.getElementById('calcExtra').value);
 
-    const collected = calcPosVal + bank + cash + extra;
+    // localStorage'a kaydet (sayfa yenilenince korunsun)
+    localStorage.setItem('calc_pos',   document.getElementById('calcPos').value);
+    localStorage.setItem('calc_bank',  document.getElementById('calcBank').value);
+    localStorage.setItem('calc_cash',  document.getElementById('calcCash').value);
+    localStorage.setItem('calc_extra', document.getElementById('calcExtra').value);
+
+    const collected = pos + bank + cash + extra;
     const diff      = calcBaseVal - collected;
 
     const el = document.getElementById('calcResult');
