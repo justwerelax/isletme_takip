@@ -107,7 +107,7 @@
                 <div class="version-badge-wrap" id="versionWrap">
                     <button class="version-badge" id="versionBtn" onclick="toggleChangelog()" title="Sürüm Geçmişi">
                         <i data-lucide="tag" style="width:12px;height:12px;"></i>
-                        v2.4.1
+                        v2.5.0
                     </button>
 
                     <div class="changelog-dropdown" id="changelogDropdown">
@@ -119,6 +119,22 @@
 
                             <?php
                             $changelog = [
+                                [
+                                    'version' => 'v2.5.0',
+                                    'date'    => '23 Mayıs 2026',
+                                    'type'    => 'feature',
+                                    'label'   => 'Yeni Özellik',
+                                    'items'   => [
+                                        'Personel: ay seçici + aylık ödeme kırılımı (expandable satırlar)',
+                                        'Personel: hakediş hesabı — geçen takvim günü × (maaş ÷ 30)',
+                                        'Personel: kalan bakiye = hakediş − ödenen avanslar',
+                                        'Personel: özet kartlar (toplam ödeme, bordo, hakediş kalan)',
+                                        'Personel: maaşlıda "avans ödemesi", gündelikçide "gün çalışma" etiketi',
+                                        'POS sistemi sadeleştirildi: tek banka, otomatik komisyon kaldırıldı',
+                                        'Türkçe sayı parse düzeltmesi: "2.356,04" → 2356.04 doğru kaydediliyor',
+                                        'Gider toplaması blur\'da binlik nokta olmadan yazılıyor (PHP parse sorunu giderildi)',
+                                    ],
+                                ],
                                 [
                                     'version' => 'v2.4.1',
                                     'date'    => '22 Mayıs 2026',
