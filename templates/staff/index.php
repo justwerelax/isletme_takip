@@ -263,26 +263,22 @@ $totalSalary = array_sum(array_column(array_filter($activeStaff, fn($s) => $s['s
                                             <span><?= Calculator::money($s['daily_rate']) ?>/gün</span>
                                         </div>
 
-                                        <!-- Hakediş: takvim günü bazlı (işe giriş tarihinden itibaren) -->
-                                        <div style="display:flex; justify-content:space-between; font-size:13px; padding:6px 0; border-top:1px dashed var(--border); border-bottom:1px dashed var(--border); margin:2px 0;">
-                                            <span style="color:var(--text-muted);">
-                                                Hakediş
-                                                <small>
-                                                    (<?= $s['days_elapsed'] ?> gün
-                                                    <?php if ($s['start_date'] && date('Ym', strtotime($s['start_date'])) === sprintf('%04d%02d', $selectedYear, $selectedMonth) && (int)date('j', strtotime($s['start_date'])) > 1): ?>
-                                                        · <?= date('d.m', strtotime($s['start_date'])) ?>'den itibaren
-                                                    <?php endif; ?>
-                                                    × günlük oran)
-                                                </small>
-                                            </span>
-                                            <span style="font-weight:700; color:#f59e0b;"><?= Calculator::money($s['hakedis']) ?></span>
+                                        <!-- Hakediş: takvim günü bazlı -->
+                                        <div style="padding:6px 0; border-top:1px dashed var(--border); border-bottom:1px dashed var(--border); margin:2px 0;">
+                                            <div style="display:flex; justify-content:space-between; align-items:baseline; font-size:13px;">
+                                                <span style="color:var(--text-muted);">Hakediş</span>
+                                                <span style="font-weight:700; color:#f59e0b;"><?= Calculator::money($s['hakedis']) ?></span>
+                                            </div>
+                                            <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">
+                                                <?= $s['days_elapsed'] ?> gün<?php if ($s['start_date'] && date('Ym', strtotime($s['start_date'])) === sprintf('%04d%02d', $selectedYear, $selectedMonth) && (int)date('j', strtotime($s['start_date'])) > 1): ?> · <?= date('d.m', strtotime($s['start_date'])) ?>'den itibaren<?php endif; ?> × <?= Calculator::money($s['daily_rate']) ?>/gün
+                                            </div>
                                         </div>
 
                                         <!-- Ödenen Avanslar -->
                                         <div style="display:flex; justify-content:space-between; font-size:12px;">
                                             <span style="color:var(--text-muted);">
                                                 Ödenen Avanslar
-                                                <small style="color:var(--text-muted);">(<?= count($s['daily_payments']) ?> ödeme)</small>
+                                                <small style="color:var(--text-muted);">(<?= count($s['salary_payments']) ?> ödeme)</small>
                                             </span>
                                             <span style="color:#94a3b8;">-<?= Calculator::money($s['month_total']) ?></span>
                                         </div>
