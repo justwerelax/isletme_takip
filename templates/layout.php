@@ -107,7 +107,7 @@
                 <div class="version-badge-wrap" id="versionWrap">
                     <button class="version-badge" id="versionBtn" onclick="toggleChangelog()" title="Sürüm Geçmişi">
                         <i data-lucide="tag" style="width:12px;height:12px;"></i>
-                        v2.5.0
+                        v2.5.1
                     </button>
 
                     <div class="changelog-dropdown" id="changelogDropdown">
@@ -119,6 +119,17 @@
 
                             <?php
                             $changelog = [
+                                [
+                                    'version' => 'v2.5.1',
+                                    'date'    => '23 Mayıs 2026',
+                                    'type'    => 'fix',
+                                    'label'   => 'Düzeltme',
+                                    'items'   => [
+                                        'Personel hakediş: ayın ortasında işe girenler için start_date\'ten itibaren sayılıyor',
+                                        'Maaşlı personel footer: "X gün çalışma" → "X avans ödemesi" olarak düzeltildi',
+                                        'Hakediş detayında işe giriş tarihi gösteriliyor (o ay içinde girdiyse)',
+                                    ],
+                                ],
                                 [
                                     'version' => 'v2.5.0',
                                     'date'    => '23 Mayıs 2026',

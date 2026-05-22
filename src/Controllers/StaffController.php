@@ -33,19 +33,41 @@ class StaffController {
             }
             $s['month_total'] = array_sum(array_column($s['daily_payments'], 'amount'));
 
-            // Geçen takvim günü hesabı:
-            // - Seçilen ay geçmiş bir aysa → tam 30 gün (ay bitti)
-            // - Seçilen ay bu ayki ay    → bugünün günü (min 30)
-            // - Seçilen ay gelecekteyse  → 0
-            $today = new \DateTime('today');
+            // Geçen takvim günü hesabı — start_date dikkate alınır:
+            // Sayım başlangıcı = max(ayın ilk günü, start_date)
+            // Sayım sonu      = geçmiş ayda ayın son günü (30), bu ayda bugün
+            $today    = new \DateTime('today');
             $selFirst = new \DateTime(sprintf('%04d-%02d-01', $selectedYear, $selectedMonth));
+            $selLast  = new \DateTime(sprintf('%04d-%02d-%02d', $selectedYear, $selectedMonth,
+                            (int)date('t', mktime(0,0,0,$selectedMonth,1,$selectedYear))));
             $selYm    = (int)$selFirst->format('Ym');
             $todayYm  = (int)$today->format('Ym');
 
-            if ($selYm < $todayYm) {
-                $daysElapsed = 30; // geçmiş ay: tam ay
+            // Başlangıç: personelin işe giriş tarihi varsa ve o ay içindeyse onu kullan
+            $startDate = $s['start_date'] ? new \DateTime($s['start_date']) : null;
+            $countFrom = clone $selFirst; // varsayılan: ayın 1'i
+            if ($startDate) {
+                $startYm = (int)$startDate->format('Ym');
+                if ($startYm === $selYm) {
+                    // Bu seçilen ay içinde işe girdi → start_date'ten say
+                    $countFrom = clone $startDate;
+                } elseif ($startYm > $selYm) {
+                    // Seçilen aydan sonra işe girdi → bu ayda hiç çalışmadı
+                    $countFrom = null;
+                }
+                // $startYm < $selYm → daha önceden çalışıyor, ayın başından say (zaten varsayılan)
+            }
+
+            if ($countFrom === null) {
+                $daysElapsed = 0; // bu ay henüz işe girmedi
+            } elseif ($selYm < $todayYm) {
+                // Geçmiş ay: countFrom'dan ay sonuna kadar (max 30)
+                $diff = $countFrom->diff($selLast);
+                $daysElapsed = min($diff->days + 1, 30);
             } elseif ($selYm === $todayYm) {
-                $daysElapsed = min((int)$today->format('j'), 30); // bu ay: bugüne kadar
+                // Bu ay: countFrom'dan bugüne kadar (max 30)
+                $diff = $countFrom->diff($today);
+                $daysElapsed = min($diff->days + 1, 30);
             } else {
                 $daysElapsed = 0; // gelecek ay
             }

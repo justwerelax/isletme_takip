@@ -238,11 +238,17 @@ $totalSalary = array_sum(array_column(array_filter($activeStaff, fn($s) => $s['s
                                             <span><?= Calculator::money($s['daily_rate']) ?>/gün</span>
                                         </div>
 
-                                        <!-- Hakediş: takvim günü bazlı -->
+                                        <!-- Hakediş: takvim günü bazlı (işe giriş tarihinden itibaren) -->
                                         <div style="display:flex; justify-content:space-between; font-size:13px; padding:6px 0; border-top:1px dashed var(--border); border-bottom:1px dashed var(--border); margin:2px 0;">
                                             <span style="color:var(--text-muted);">
                                                 Hakediş
-                                                <small>(<?= $s['days_elapsed'] ?> takvim günü × günlük oran)</small>
+                                                <small>
+                                                    (<?= $s['days_elapsed'] ?> gün
+                                                    <?php if ($s['start_date'] && date('Ym', strtotime($s['start_date'])) === sprintf('%04d%02d', $selectedYear, $selectedMonth)): ?>
+                                                        · <?= date('d.m', strtotime($s['start_date'])) ?>'den itibaren
+                                                    <?php endif; ?>
+                                                    × günlük oran)
+                                                </small>
                                             </span>
                                             <span style="font-weight:700; color:#f59e0b;"><?= Calculator::money($s['hakedis']) ?></span>
                                         </div>
