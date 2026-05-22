@@ -181,30 +181,49 @@ $totalSalary = array_sum(array_column(array_filter($activeStaff, fn($s) => $s['s
                                             <tr>
                                                 <th>Tarih</th>
                                                 <th class="text-right">Ödeme</th>
-                                                <th class="text-right">Kümülatif</th>
+                                                <th class="text-right">Tür</th>
+                                                <th class="text-right">Kümülatif (Avans)</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <?php $cumulative = 0; foreach ($s['daily_payments'] as $day):
-                                                $cumulative += (float)$day['amount'];
+                                            <?php $cumSalary = 0; foreach ($s['daily_payments'] as $day):
+                                                $dayIsSalary = (int)$day['is_salary'] === 1;
+                                                if ($dayIsSalary) $cumSalary += (float)$day['amount'];
                                             ?>
-                                            <tr>
+                                            <tr style="<?= !$dayIsSalary ? 'opacity:0.65;' : '' ?>">
                                                 <td><?= date('d.m.Y', strtotime($day['entry_date'])) . ' (' . ($trDays[date('D', strtotime($day['entry_date']))] ?? '') . ')' ?></td>
-                                                <td class="text-right" style="color:#f59e0b; font-weight:600;"><?= Calculator::money($day['amount']) ?></td>
-                                                <td class="text-right text-muted"><?= Calculator::money($cumulative) ?></td>
+                                                <td class="text-right" style="color:<?= $dayIsSalary ? '#f59e0b' : '#94a3b8' ?>; font-weight:600;">
+                                                    <?= Calculator::money($day['amount']) ?>
+                                                </td>
+                                                <td class="text-right">
+                                                    <?php if ($dayIsSalary): ?>
+                                                        <span style="font-size:10px; background:rgba(245,158,11,.12); color:#f59e0b; padding:1px 6px; border-radius:10px;">Avans</span>
+                                                    <?php else: ?>
+                                                        <span style="font-size:10px; background:rgba(100,116,139,.12); color:#94a3b8; padding:1px 6px; border-radius:10px;">Maaş Dışı</span>
+                                                    <?php endif; ?>
+                                                </td>
+                                                <td class="text-right text-muted"><?= $dayIsSalary ? Calculator::money($cumSalary) : '—' ?></td>
                                             </tr>
                                             <?php endforeach; ?>
                                         </tbody>
                                         <tfoot>
+                                            <?php if (!empty($s['trial_payments'])): ?>
+                                            <tr style="font-size:11px; color:var(--text-muted);">
+                                                <td colspan="2">Maaş dışı ödemeler (hakediş dışı)</td>
+                                                <td></td>
+                                                <td class="text-right"><?= Calculator::money($s['trial_total']) ?></td>
+                                            </tr>
+                                            <?php endif; ?>
                                             <tr style="font-weight:700; border-top:2px solid var(--border);">
                                                 <td>
                                                     <?php if ($s['salary'] > 0): ?>
-                                                        <?= count($s['daily_payments']) ?> avans ödemesi
+                                                        <?= count($s['salary_payments']) ?> avans ödemesi
                                                     <?php else: ?>
                                                         <?= count($s['daily_payments']) ?> gün çalışma
                                                     <?php endif; ?>
                                                 </td>
                                                 <td class="text-right" style="color:#f59e0b;"><?= Calculator::money($s['month_total']) ?></td>
+                                                <td></td>
                                                 <td></td>
                                             </tr>
                                         </tfoot>

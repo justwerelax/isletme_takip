@@ -52,12 +52,12 @@ class EntryController {
 
                 // Personel gideri kırılımı (detay satırında göstermek için)
                 $staffExps = Database::fetchAll(
-                    "SELECT se.staff_id, se.amount, s.name FROM staff_expenses se JOIN staff s ON se.staff_id = s.id WHERE se.daily_entry_id = ? ORDER BY s.name",
+                    "SELECT se.staff_id, se.amount, se.is_salary, s.name FROM staff_expenses se JOIN staff s ON se.staff_id = s.id WHERE se.daily_entry_id = ? ORDER BY s.name",
                     [$entry['id']]
                 );
                 $staffExpMap = [];
                 foreach ($staffExps as $se) {
-                    $staffExpMap[$se['staff_id']] = ['amount' => (float)$se['amount'], 'name' => $se['name']];
+                    $staffExpMap[$se['staff_id']] = ['amount' => (float)$se['amount'], 'name' => $se['name'], 'is_salary' => (int)$se['is_salary']];
                 }
                 $entry['staff_expenses'] = $staffExpMap;
             }
@@ -83,12 +83,15 @@ class EntryController {
                 $editEntry['expense_notes'] = $expNoteMap;
 
                 // Personel giderleri
-                $staffExps = Database::fetchAll("SELECT staff_id, amount FROM staff_expenses WHERE daily_entry_id = ?", [$editEntry['id']]);
-                $staffExpMap = [];
+                $staffExps = Database::fetchAll("SELECT staff_id, amount, is_salary FROM staff_expenses WHERE daily_entry_id = ?", [$editEntry['id']]);
+                $staffExpMap   = [];
+                $staffTrialMap = []; // is_salary=0 olanlar
                 foreach ($staffExps as $se) {
-                    $staffExpMap[$se['staff_id']] = (float)$se['amount'];
+                    $staffExpMap[$se['staff_id']]   = (float)$se['amount'];
+                    $staffTrialMap[$se['staff_id']]  = (int)$se['is_salary'] === 0; // true = deneme
                 }
-                $editEntry['staff_expenses'] = $staffExpMap;
+                $editEntry['staff_expenses']       = $staffExpMap;
+                $editEntry['staff_trial']           = $staffTrialMap;
             }
         }
 
@@ -234,13 +237,14 @@ class EntryController {
                     $totalStaffExp  = 0;
 
                     foreach ($_POST['staff_expenses'] as $staffId => $amount) {
-                        $amt = $this->parseTRAmount((string)$amount);
+                        $amt      = $this->parseTRAmount((string)$amount);
+                        $isSalary = isset($_POST['staff_trial'][(int)$staffId]) ? 0 : 1; // checkbox işaretliyse deneme = 0
                         if ($amt > 0) {
                             Database::query("
-                                INSERT INTO staff_expenses (daily_entry_id, staff_id, amount)
-                                VALUES (?, ?, ?)
-                                ON DUPLICATE KEY UPDATE amount = VALUES(amount)
-                            ", [$id, (int)$staffId, $amt]);
+                                INSERT INTO staff_expenses (daily_entry_id, staff_id, amount, is_salary)
+                                VALUES (?, ?, ?, ?)
+                                ON DUPLICATE KEY UPDATE amount = VALUES(amount), is_salary = VALUES(is_salary)
+                            ", [$id, (int)$staffId, $amt, $isSalary]);
                             $totalStaffExp += $amt;
                         } else {
                             // Sıfır girilmişse o personeli sil

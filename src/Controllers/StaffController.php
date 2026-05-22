@@ -21,7 +21,7 @@ class StaffController {
         foreach ($activeStaff as &$s) {
             if ($monthRow) {
                 $s['daily_payments'] = Database::fetchAll(
-                    "SELECT de.entry_date, se.amount
+                    "SELECT de.entry_date, se.amount, se.is_salary
                      FROM staff_expenses se
                      JOIN daily_entries de ON se.daily_entry_id = de.id
                      WHERE se.staff_id = ? AND de.month_id = ?
@@ -31,7 +31,13 @@ class StaffController {
             } else {
                 $s['daily_payments'] = [];
             }
-            $s['month_total'] = array_sum(array_column($s['daily_payments'], 'amount'));
+            // Sadece is_salary=1 olanlar hakediş hesabına girer
+            $salaryPayments = array_filter($s['daily_payments'], fn($p) => (int)$p['is_salary'] === 1);
+            $trialPayments  = array_filter($s['daily_payments'], fn($p) => (int)$p['is_salary'] === 0);
+            $s['month_total']       = array_sum(array_column($salaryPayments, 'amount'));
+            $s['trial_total']       = array_sum(array_column($trialPayments,  'amount'));
+            $s['salary_payments']   = array_values($salaryPayments);
+            $s['trial_payments']    = array_values($trialPayments);
 
             // Geçen takvim günü hesabı — start_date dikkate alınır:
             // Sayım başlangıcı = max(ayın ilk günü, start_date)

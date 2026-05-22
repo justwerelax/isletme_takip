@@ -178,13 +178,25 @@ $monthNames = ['', 'Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','A
                         </div>
                         <div id="<?= $groupId ?>" style="grid-column: 1 / -1; display:<?= $hasValue ? 'grid' : 'none' ?>; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap:12px; padding:10px 4px 4px;">
                             <?php foreach ($activeStaff as $st):
-                                $sval = 0;
+                                $sval    = 0;
+                                $isTrial = false;
                                 if ($editEntry && isset($editEntry['staff_expenses'][$st['id']])) {
-                                    $sval = abs($editEntry['staff_expenses'][$st['id']]);
+                                    $sval    = abs($editEntry['staff_expenses'][$st['id']]);
+                                    $isTrial = !empty($editEntry['staff_trial'][$st['id']]);
                                 }
                             ?>
                             <div class="form-group" style="margin-bottom:0;">
-                                <label><?= htmlspecialchars($st['name']) ?> (₺)</label>
+                                <label style="display:flex; align-items:center; justify-content:space-between; gap:6px;">
+                                    <span><?= htmlspecialchars($st['name']) ?> (₺)</span>
+                                    <?php if ($st['salary'] > 0): ?>
+                                    <label style="display:flex; align-items:center; gap:4px; font-size:10px; font-weight:400; color:var(--text-muted); cursor:pointer; white-space:nowrap;">
+                                        <input type="checkbox" name="staff_trial[<?= $st['id'] ?>]" value="1"
+                                               <?= $isTrial ? 'checked' : '' ?>
+                                               style="width:12px;height:12px;accent-color:#f59e0b;">
+                                        Maaş dışı
+                                    </label>
+                                    <?php endif; ?>
+                                </label>
                                 <input type="text" inputmode="decimal" name="staff_expenses[<?= $st['id'] ?>]"
                                        value="<?= $sval > 0 ? number_format($sval, 2, ',', '') : '' ?>"
                                        placeholder="<?= $st['salary'] > 0 ? number_format((float)$st['salary'], 2, ',', '') : '0,00' ?>">

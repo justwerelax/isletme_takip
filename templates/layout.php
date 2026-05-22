@@ -107,7 +107,7 @@
                 <div class="version-badge-wrap" id="versionWrap">
                     <button class="version-badge" id="versionBtn" onclick="toggleChangelog()" title="Sürüm Geçmişi">
                         <i data-lucide="tag" style="width:12px;height:12px;"></i>
-                        v2.5.1
+                        v2.5.2
                     </button>
 
                     <div class="changelog-dropdown" id="changelogDropdown">
@@ -119,6 +119,19 @@
 
                             <?php
                             $changelog = [
+                                [
+                                    'version' => 'v2.5.2',
+                                    'date'    => '23 Mayıs 2026',
+                                    'type'    => 'feature',
+                                    'label'   => 'Yeni Özellik',
+                                    'items'   => [
+                                        'Personel: "Maaş Dışı" ödeme tipi eklendi (deneme günü, özel ödeme)',
+                                        'Maaş dışı ödemeler hakediş hesabına dahil edilmez',
+                                        'Günlük girişlerde her maaşlı personele "Maaş dışı" checkbox eklendi',
+                                        'Personel detay tablosunda Avans / Maaş Dışı rozeti gösterimi',
+                                        'staff_expenses tablosuna is_salary sütunu eklendi',
+                                    ],
+                                ],
                                 [
                                     'version' => 'v2.5.1',
                                     'date'    => '23 Mayıs 2026',
