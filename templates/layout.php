@@ -107,7 +107,7 @@
                 <div class="version-badge-wrap" id="versionWrap">
                     <button class="version-badge" id="versionBtn" onclick="toggleChangelog()" title="Sürüm Geçmişi">
                         <i data-lucide="tag" style="width:12px;height:12px;"></i>
-                        v2.5.2
+                        v2.5.3
                     </button>
 
                     <div class="changelog-dropdown" id="changelogDropdown">
@@ -119,6 +119,16 @@
 
                             <?php
                             $changelog = [
+                                [
+                                    'version' => 'v2.5.3',
+                                    'date'    => '23 Mayıs 2026',
+                                    'type'    => 'fix',
+                                    'label'   => 'Düzeltme',
+                                    'items'   => [
+                                        'Personel maaş kaydında Türkçe sayı parse hatası giderildi ("28.000,00" → 28000 doğru kaydediliyor)',
+                                        'Ana tabloda maaşlı personel için "X avans + Y maaş dışı" etiketi eklendi',
+                                    ],
+                                ],
                                 [
                                     'version' => 'v2.5.2',
                                     'date'    => '23 Mayıs 2026',

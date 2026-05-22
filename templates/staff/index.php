@@ -129,7 +129,13 @@ $totalSalary = array_sum(array_column(array_filter($activeStaff, fn($s) => $s['s
                     <td class="text-right">
                         <?php if ($s['month_total'] > 0): ?>
                             <span style="color:#f59e0b; font-weight:600;"><?= Calculator::money($s['month_total']) ?></span>
-                            <small class="text-muted" style="font-size:10px; display:block;"><?= count($s['daily_payments']) ?> gün</small>
+                            <small class="text-muted" style="font-size:10px; display:block;">
+                                <?php if ($s['salary'] > 0): ?>
+                                    <?= count($s['salary_payments']) ?> avans<?= !empty($s['trial_payments']) ? ' + ' . count($s['trial_payments']) . ' maaş dışı' : '' ?>
+                                <?php else: ?>
+                                    <?= count($s['daily_payments']) ?> gün
+                                <?php endif; ?>
+                            </small>
                         <?php else: ?>
                             <span class="text-muted">—</span>
                         <?php endif; ?>

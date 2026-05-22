@@ -109,6 +109,24 @@ class StaffController {
         require BASE_PATH . '/templates/layout.php';
     }
 
+    /** Türkçe formatlı sayıyı float'a çevirir ("28.000,00" → 28000.0) */
+    private function parseTRAmount(string $val): float {
+        $val = trim($val);
+        if ($val === '') return 0.0;
+        if (strpos($val, ',') !== false && strpos($val, '.') !== false) {
+            $val = str_replace('.', '', $val);
+            $val = str_replace(',', '.', $val);
+        } elseif (strpos($val, ',') !== false) {
+            $val = str_replace(',', '.', $val);
+        } elseif (strpos($val, '.') !== false) {
+            $parts = explode('.', $val);
+            if (count($parts) > 2 || strlen(end($parts)) === 3) {
+                $val = str_replace('.', '', $val);
+            }
+        }
+        return (float)$val;
+    }
+
     public function save() {
         Auth::requireAdmin();
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') { header('Location: ?page=staff'); exit; }
@@ -116,7 +134,7 @@ class StaffController {
         $id        = (int)($_POST['id'] ?? 0);
         $name      = trim($_POST['name'] ?? '');
         $position  = trim($_POST['position'] ?? '');
-        $salary    = (float)str_replace(',', '.', $_POST['salary'] ?? '0');
+        $salary    = $this->parseTRAmount($_POST['salary'] ?? '0');
         $startDate = $_POST['start_date'] ?: null;
         $notes     = trim($_POST['notes'] ?? '');
 
