@@ -31,16 +31,34 @@ class StaffController {
             } else {
                 $s['daily_payments'] = [];
             }
-            $s['month_total']  = array_sum(array_column($s['daily_payments'], 'amount'));
-            $daysWorked        = count($s['daily_payments']);
+            $s['month_total'] = array_sum(array_column($s['daily_payments'], 'amount'));
 
-            // Hakediş = (çalışılan gün / 30) × maaş  →  o güne kadar hak edilen tutar
+            // Geçen takvim günü hesabı:
+            // - Seçilen ay geçmiş bir aysa → tam 30 gün (ay bitti)
+            // - Seçilen ay bu ayki ay    → bugünün günü (min 30)
+            // - Seçilen ay gelecekteyse  → 0
+            $today = new \DateTime('today');
+            $selFirst = new \DateTime(sprintf('%04d-%02d-01', $selectedYear, $selectedMonth));
+            $selYm    = (int)$selFirst->format('Ym');
+            $todayYm  = (int)$today->format('Ym');
+
+            if ($selYm < $todayYm) {
+                $daysElapsed = 30; // geçmiş ay: tam ay
+            } elseif ($selYm === $todayYm) {
+                $daysElapsed = min((int)$today->format('j'), 30); // bu ay: bugüne kadar
+            } else {
+                $daysElapsed = 0; // gelecek ay
+            }
+            $s['days_elapsed'] = $daysElapsed;
+
+            // Hakediş = (geçen takvim günü / 30) × maaş
+            // Ödenen avanslar = staff_expenses toplamı (maaştan yapılan avans ödemeleri)
             // Kalan bakiye = hakediş - ödenen avanslar
             if ($s['salary'] > 0) {
-                $dailyRate          = (float)$s['salary'] / 30;
-                $s['daily_rate']    = $dailyRate;
-                $s['hakedis']       = $daysWorked * $dailyRate;
-                $s['balance']       = $s['hakedis'] - (float)$s['month_total'];
+                $dailyRate       = (float)$s['salary'] / 30;
+                $s['daily_rate'] = $dailyRate;
+                $s['hakedis']    = $daysElapsed * $dailyRate;
+                $s['balance']    = $s['hakedis'] - (float)$s['month_total'];
             } else {
                 $s['daily_rate'] = null;
                 $s['hakedis']    = null;

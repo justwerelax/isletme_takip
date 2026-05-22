@@ -217,8 +217,7 @@ $totalSalary = array_sum(array_column(array_filter($activeStaff, fn($s) => $s['s
                                         Hakediş Hesabı <span style="font-size:10px; font-weight:400;">(30 gün baz)</span>
                                     </div>
 
-                                    <!-- Formül: hakediş = çalışılan_gün × (maaş / 30) -->
-                                    <?php $daysWorked = count($s['daily_payments']); ?>
+                                    <!-- Formül: hakediş = (geçen takvim günü / 30) × maaş -->
                                     <div style="display:flex; flex-direction:column; gap:8px;">
 
                                         <!-- Aylık Maaş -->
@@ -233,15 +232,21 @@ $totalSalary = array_sum(array_column(array_filter($activeStaff, fn($s) => $s['s
                                             <span><?= Calculator::money($s['daily_rate']) ?>/gün</span>
                                         </div>
 
-                                        <!-- Hakediş -->
+                                        <!-- Hakediş: takvim günü bazlı -->
                                         <div style="display:flex; justify-content:space-between; font-size:13px; padding:6px 0; border-top:1px dashed var(--border); border-bottom:1px dashed var(--border); margin:2px 0;">
-                                            <span style="color:var(--text-muted);">Hakediş <small>(<?= $daysWorked ?> gün × günlük oran)</small></span>
+                                            <span style="color:var(--text-muted);">
+                                                Hakediş
+                                                <small>(<?= $s['days_elapsed'] ?> takvim günü × günlük oran)</small>
+                                            </span>
                                             <span style="font-weight:700; color:#f59e0b;"><?= Calculator::money($s['hakedis']) ?></span>
                                         </div>
 
                                         <!-- Ödenen Avanslar -->
                                         <div style="display:flex; justify-content:space-between; font-size:12px;">
-                                            <span style="color:var(--text-muted);">Ödenen Avanslar</span>
+                                            <span style="color:var(--text-muted);">
+                                                Ödenen Avanslar
+                                                <small style="color:var(--text-muted);">(<?= count($s['daily_payments']) ?> ödeme)</small>
+                                            </span>
                                             <span style="color:#94a3b8;">-<?= Calculator::money($s['month_total']) ?></span>
                                         </div>
 
