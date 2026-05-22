@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <title>Alt Firma Detay - Alt Firma Takip</title>
+    <link rel="stylesheet" href="../css/app.css">
+    <script src="../js/api.js"></script>
+    <script src="../js/auth.js"></script>
+    <script src="../js/utils.js"></script>
+    <style>
+        body { background: #f5f7fa; }
+        .header { background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 0 24px; height: 64px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+        .header h1 { font-size: 18px; color: #667eea; }
+        .btn-back { padding: 8px 16px; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; font-family: inherit; }
+        .header-right { display: flex; gap: 8px; align-items: center; }
+        .btn-export { padding: 7px 14px; border: none; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; font-family: inherit; }
+        .btn-export-json { background: #f0fdf4; color: #166534; border: 1.5px solid #bbf7d0; }
+        .btn-export-json:hover { background: #dcfce7; }
+        .btn-export-csv  { background: #eff6ff; color: #1e40af; border: 1.5px solid #bfdbfe; }
+        .btn-export-csv:hover  { background: #dbeafe; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+        .info-card { background: white; border-radius: 12px; padding: 28px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 20px; }
+        .firm-name { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+        .firm-meta { display: flex; gap: 20px; color: #6b7280; font-size: 14px; margin-bottom: 20px; flex-wrap: wrap; }
+        .balance-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 14px; }
+        .bal-item { padding: 16px 20px; border-radius: 10px; text-align: center; }
+        .bal-item.kendi   { background: linear-gradient(135deg,#ede9fe,#ddd6fe); }
+        .bal-item.bizim   { background: linear-gradient(135deg,#dbeafe,#bfdbfe); }
+        .bal-item.borc    { background: linear-gradient(135deg,#fee2e2,#fecaca); }
+        .bal-item.alacak  { background: linear-gradient(135deg,#d1fae5,#a7f3d0); }
+        .bal-item.sifir   { background: linear-gradient(135deg,#f3f4f6,#e5e7eb); }
+        .bal-item .bi-lbl { font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+        .bal-item .bi-val { font-size: 22px; font-weight: 700; color: #1f2937; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit,minmax(150px,1fr)); gap: 14px; margin-bottom: 24px; }
+        .stat { background: white; border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .stat .sl { font-size: 12px; color: #6b7280; font-weight: 500; margin-bottom: 4px; }
+        .stat .sv { font-size: 18px; font-weight: 700; color: #667eea; }
+        .sec { margin-bottom: 28px; }
+        .sec-hd { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+        .sec-hd h2 { font-size: 17px; }
+        .btn-add { padding: 9px 18px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; font-family: inherit; }
+        .btn-add:hover { background: #5568d3; }
+        .tw { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 520px; }
+        thead { background: #f9fafb; }
+        th { padding: 12px 14px; text-align: left; font-size: 13px; font-weight: 600; color: #6b7280; border-bottom: 2px solid #e5e7eb; white-space: nowrap; }
+        td { padding: 12px 14px; border-bottom: 1px solid #f3f4f6; font-size: 14px; }
+        tbody tr:last-child td { border-bottom: none; }
+        tbody tr:hover { background: #f9fafb; }
+        .actions { display: flex; gap: 6px; }
+        .btn-sm { padding: 5px 11px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; font-family: inherit; }
+        .btn-edit { background: #f59e0b; color: white; }
+        .btn-del  { background: #ef4444; color: white; }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; padding: 16px; }
+        .modal.show { display: flex; }
+        .mbox { background: white; border-radius: 14px; padding: 28px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; animation: mIn .2s ease; }
+        @keyframes mIn { from{transform:scale(.95);opacity:0} to{transform:scale(1);opacity:1} }
+        .mhead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .mhead h3 { font-size: 17px; }
+        .btn-x { background: none; border: none; font-size: 22px; color: #9ca3af; cursor: pointer; }
+        .fg { margin-bottom: 14px; }
+        .fg label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 5px; }
+        .fg input, .fg select, .fg textarea { width: 100%; padding: 9px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 14px; font-family: inherit; }
+        .fg input:focus, .fg select:focus, .fg textarea:focus { outline: none; border-color: #667eea; }
+        .fg textarea { resize: vertical; min-height: 60px; }
+        .frow { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .calc { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; margin-top: 4px; }
+        .calc .cl { font-size: 12px; color: #6b7280; font-weight: 500; margin-bottom: 3px; }
+        .calc .cv { font-size: 18px; font-weight: 700; color: #667eea; }
+        .fa { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; padding-top: 16px; border-top: 1px solid #e5e7eb; }
+        .btn-cancel { padding: 9px 18px; background: #e5e7eb; color: #374151; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; font-family: inherit; }
+        .btn-save   { padding: 9px 18px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; font-family: inherit; }
+        .is-tipi-tabs { display: flex; gap: 0; margin-bottom: 18px; border-radius: 8px; overflow: hidden; border: 2px solid #e5e7eb; }
+        .is-tipi-tab { flex: 1; padding: 10px; text-align: center; cursor: pointer; font-size: 13px; font-weight: 600; background: white; color: #6b7280; border: none; font-family: inherit; transition: all .2s; }
+        .is-tipi-tab.active.kendi { background: #ede9fe; color: #5b21b6; }
+        .is-tipi-tab.active.bizim { background: #dbeafe; color: #1d4ed8; }
+        .is-tipi-section { display: none; }
+        .is-tipi-section.show { display: block; }
+        .odeme-tipi-tabs { display: flex; gap: 0; margin-bottom: 14px; border-radius: 8px; overflow: hidden; border: 2px solid #e5e7eb; }
+        .odeme-tab { flex: 1; padding: 8px; text-align: center; cursor: pointer; font-size: 12px; font-weight: 600; background: white; color: #6b7280; border: none; font-family: inherit; transition: all .2s; }
+        .odeme-tab.active { background: #dbeafe; color: #1d4ed8; }
+        .toast { position: fixed; top: 20px; right: 20px; background: white; padding: 14px 20px; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); z-index: 9999; display: none; align-items: center; gap: 10px; min-width: 260px; }
+        .toast.show { display: flex; }
+        .toast.success { border-left: 4px solid #10b981; }
+        .toast.error   { border-left: 4px solid #ef4444; }
+        @media (max-width: 768px) {
+            .header { padding: 0 16px; }
+            .firm-meta { flex-direction: column; gap: 6px; }
+            .frow { grid-template-columns: 1fr; }
+            .sec-hd { flex-direction: column; align-items: stretch; gap: 10px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Alt Firma Detay</h1>
+        <div class="header-right">
+            <button class="btn-export btn-export-json" id="btnExportJSON">📥 JSON</button>
+            <button class="btn-export btn-export-csv"  id="btnExportCSV">📊 CSV</button>
+            <button class="btn-back" onclick="location.href='dashboard.html'">← Geri Dön</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div id="loadingMsg" style="text-align:center;padding:60px;color:#9ca3af;">⏳ Yükleniyor...</div>
+        <div id="content" style="display:none;">
+
+            <div class="info-card">
+                <div class="firm-name" id="firmName"></div>
+                <div class="firm-meta">
+                    <span id="firmPhone"></span>
+                    <span id="firmAddr"></span>
+                </div>
+                <div class="balance-grid">
+                    <div class="bal-item kendi">
+                        <div class="bi-lbl" for-bal="kendi">🔵 Kendi İşleri Bakiyesi</div>
+                        <div class="bi-val" id="balKendi">0 ₺</div>
+                    </div>
+                    <div class="bal-item bizim">
+                        <div class="bi-lbl" for-bal="bizim">🟢 Bizim İşlerimiz Bakiyesi</div>
+                        <div class="bi-val" id="balBizim">0 ₺</div>
+                    </div>
+                    <div class="bal-item" style="background:linear-gradient(135deg,#e0f2fe,#bae6fd);">
+                        <div class="bi-lbl" for-bal="odeme">💸 Yapılan Ödemeler</div>
+                        <div class="bi-val" id="balOdeme" style="color:#0369a1;">0 ₺</div>
+                    </div>
+                    <div id="balMevcutCard" class="bal-item sifir">
+                        <div class="bi-lbl" id="balMevcutLabel">💰 Firma Bakiyesi</div>
+                        <div class="bi-val" id="balMevcut">0 ₺</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stats">
+                <div class="stat"><div class="sl">Bizden Verilen Adres</div><div class="sv" id="stJobs">0</div></div>
+                <div class="stat"><div class="sl">Toplam m² (Kendi İşleri)</div><div class="sv" id="stM2">0</div></div>
+                <div class="stat"><div class="sl">Elde Edilen Kar (Bizden Gelen)</div><div class="sv" id="stCom">0 ₺</div></div>
+            </div>
+
+            <div class="sec">
+                <div class="sec-hd">
+                    <h2>Yıkama İşleri</h2>
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <button id="toggleBitenBtn" class="btn-add" style="background:#10b981;display:none;" onclick="toggleBitenIsler()">✅ Biten İşleri Göster</button>
+                        <button class="btn-add" onclick="openJobModal()">+ Yeni İş Ekle</button>
+                    </div>
+                </div>
+                <div class="tw">
+                    <table>
+                        <thead><tr><th></th><th>Müşteri/Açıklama</th><th>Tarih</th><th>m²</th><th>Birim Fiyat</th><th>Toplam</th><th>Teslimat Tipi</th><th>Borç</th><th>İşlemler</th></tr></thead>
+                        <tbody id="jobsTbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="sec">
+                <div class="sec-hd">
+                    <h2>Para Hareketleri</h2>
+                    <button class="btn-add" onclick="openPayModal()">+ Yeni Hareket Ekle</button>
+                </div>
+                <div class="tw">
+                    <table>
+                        <thead><tr><th>Tarih</th><th>Tutar</th><th>Tip</th><th>Açıklama</th><th>İşlemler</th></tr></thead>
+                        <tbody id="payTbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Job Modal -->
+    <div id="jobModal" class="modal">
+        <div class="mbox">
+            <div class="mhead"><h3 id="jobMTitle">Yeni İş Ekle</h3><button class="btn-x" onclick="closeJobModal()">×</button></div>
+            <form id="jobForm" novalidate>
+                <input type="hidden" id="jobEditId">
+                <div class="is-tipi-tabs">
+                    <button type="button" class="is-tipi-tab active kendi" id="tabKendi" onclick="switchTab('kendi_isi')">🔵 Kendi İşi</button>
+                    <button type="button" class="is-tipi-tab bizim"        id="tabBizim" onclick="switchTab('bizim_isimiz')">🟢 Bizim İşimiz</button>
+                </div>
+                <input type="hidden" id="jIsTipi" value="kendi_isi">
+                <div class="fg"><label>Tarih *</label><input type="date" id="jTarih" required></div>
+                <div id="secM2Alan" class="fg"><label>Metrekare</label><input type="number" id="jM2" step="0.01" min="0" placeholder="0.00 (opsiyonel)"></div>
+
+                <div id="secKendi" class="is-tipi-section show">
+                    <div class="fg">
+                        <label>Birim Fiyat (₺/m²) *</label>
+                        <input type="number" id="jFiyatKendi" step="0.01" placeholder="Firmaya özel sabit fiyat">
+                    </div>
+                    <div class="calc">
+                        <div class="cl">Toplam Tutar (Borç)</div>
+                        <div class="cv" id="jToplamKendi">0 ₺</div>
+                    </div>
+                </div>
+
+                <div id="secBizim" class="is-tipi-section">
+                    <div class="odeme-tipi-tabs">
+                        <button type="button" class="odeme-tab active" id="tabM2" onclick="switchOdemeTipi('m2_bazli')">📐 m² Bazlı</button>
+                        <button type="button" class="odeme-tab" id="tabKomisyon" onclick="switchOdemeTipi('komisyon_bazli')">💰 Komisyon Bazlı</button>
+                    </div>
+                    <input type="hidden" id="jOdemeTipi" value="m2_bazli">
+
+                    <div id="secM2Bazli">
+                        <div class="fg">
+                            <label>Birim Fiyat (₺/m²) *</label>
+                            <input type="number" id="jFiyatBizim" step="0.01" placeholder="0.00">
+                        </div>
+                        <div class="fg">
+                            <label>Müşteri Tutarı (₺) *</label>
+                            <input type="number" id="jMusteriTutari" step="0.01" placeholder="Müşteriden alınan toplam tutar">
+                        </div>
+                        <div class="calc">
+                            <div class="cl">Toplam Tutar (Bize Ödenecek)</div>
+                            <div class="cv" id="jToplamBizim">0 ₺</div>
+                        </div>
+                    </div>
+
+                    <div id="secKomisyonBazli" style="display:none;">
+                        <div class="fg">
+                            <label>Sipariş Tutarı (₺) *</label>
+                            <input type="number" id="jSiparisTutari" step="0.01" placeholder="Müşteriden alınan toplam tutar">
+                        </div>
+                        <div class="fg">
+                            <label>Teslimat Tipi</label>
+                            <select id="jTeslimatTipi">
+                                <option value="alt_firma_teslim">Alt Firma Teslim (%40)</option>
+                                <option value="ana_firma_teslim">Ana Firma Teslim (%30)</option>
+                            </select>
+                        </div>
+                        <div class="frow">
+                            <div class="calc"><div class="cl">Sipariş Tutarı</div><div class="cv" id="jToplamKomisyon">0 ₺</div></div>
+                            <div class="calc"><div class="cl">Komisyon (Borç)</div><div class="cv" id="jKomisyonBizim">0 ₺</div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="fg" style="margin-top:14px;"><label>Açıklama</label><textarea id="jAciklama" rows="2"></textarea></div>
+                <div class="fa">
+                    <button type="button" class="btn-cancel" onclick="closeJobModal()">İptal</button>
+                    <button type="submit" class="btn-save">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Payment Modal -->
+    <div id="payModal" class="modal">
+        <div class="mbox">
+            <div class="mhead"><h3 id="payMTitle">Yeni Para Hareketi</h3><button class="btn-x" onclick="closePayModal()">×</button></div>
+            <form id="payForm">
+                <input type="hidden" id="payEditId">
+                <div class="fg"><label>Tarih *</label><input type="date" id="pTarih" required></div>
+                <div class="fg"><label>Tutar *</label><input type="number" id="pTutar" step="0.01" min="0.01" required placeholder="0.00"></div>
+                <div class="fg" id="pTipRow">
+                    <label>Hareket Tipi *</label>
+                    <select id="pTip" required>
+                        <option value="">Seçiniz</option>
+                        <option value="odeme">💸 Ödeme (Alt firma → Ana firma, borç azalır)</option>
+                        <option value="bakiye_ekle">➕ Bakiye Ekle (Borca eklenir)</option>
+                    </select>
+                </div>
+                <div class="fg" id="pAciklamaRow"><label>Açıklama</label><textarea id="pAciklama" rows="2"></textarea></div>
+                <div class="fa">
+                    <button type="button" class="btn-cancel" onclick="closePayModal()">İptal</button>
+                    <button type="submit" class="btn-save"><span id="payBtnLabel">Kaydet</span></button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"><span id="toastIcon"></span><span id="toastMsg"></span></div>
+
+    <script>
+        // Cache bypass — DOM hazır olduktan sonra JS yükle
+        document.addEventListener('DOMContentLoaded', function() {
+            const s = document.createElement('script');
+            s.src = '../js/subcontractor-page.js?v=' + Date.now();
+            document.body.appendChild(s);
+        });
+    </script>
+</body>
+</html>

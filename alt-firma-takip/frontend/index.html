@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alt Firma Takip</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/svg+xml" href="assets/icons/icon-192x192.svg">
+    <link rel="stylesheet" href="css/app.css">
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        // Giriş yapılmışsa dashboard'a, yapılmamışsa login'e yönlendir
+        if (Auth.isAuthenticated()) {
+            window.location.replace('pages/dashboard.html');
+        } else {
+            window.location.replace('pages/login.html');
+        }
+    </script>
+</head>
+<body>
+</body>
+</html>

@@ -1,0 +1,5 @@
+﻿.claude/
+.kiro/
+.vscode/
+scratch/
+config/db.php

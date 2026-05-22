@@ -1,0 +1,36 @@
+# Database configuration
+backend/config/database.php
+
+# Environment files
+.env
+.env.local
+
+# Node modules
+node_modules/
+
+# Build outputs
+frontend/css/output.css
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Capacitor
+android/
+ios/
+.capacitor/
+
+# Temporary files
+*.tmp
+*.bak

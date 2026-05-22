@@ -1,0 +1,21 @@
+{
+  "name": "alt-firma-takip-sistemi",
+  "version": "1.0.0",
+  "description": "Alt Firma Takip Sistemi - Progressive Web Application",
+  "scripts": {
+    "build:css": "tailwindcss -i ./frontend/css/app.css -o ./frontend/css/output.css",
+    "watch:css": "tailwindcss -i ./frontend/css/app.css -o ./frontend/css/output.css --watch",
+    "build:css:prod": "tailwindcss -i ./frontend/css/app.css -o ./frontend/css/output.css --minify"
+  },
+  "keywords": [
+    "pwa",
+    "tailwind",
+    "subcontractor",
+    "tracking"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "tailwindcss": "^3.4.1"
+  }
+}
