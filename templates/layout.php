@@ -107,7 +107,7 @@
                 <div class="version-badge-wrap" id="versionWrap">
                     <button class="version-badge" id="versionBtn" onclick="toggleChangelog()" title="Sürüm Geçmişi">
                         <i data-lucide="tag" style="width:12px;height:12px;"></i>
-                        v2.5.3
+                        v2.6.0
                     </button>
 
                     <div class="changelog-dropdown" id="changelogDropdown">
@@ -119,6 +119,19 @@
 
                             <?php
                             $changelog = [
+                                [
+                                    'version' => 'v2.6.0',
+                                    'date'    => '25 Mayıs 2026',
+                                    'type'    => 'feature',
+                                    'label'   => 'Yeni Özellik',
+                                    'items'   => [
+                                        'POS: Günlerin başına seçim kutucuğu eklendi (çoklu seçim)',
+                                        'POS: Seçili günlerin komisyon toplamı sticky panelde anlık gösteriliyor',
+                                        'POS: Komisyon toplamı seçilen hedef tarihin giderine otomatik ekleniyor',
+                                        'POS: Komisyon eklenen günler tekrar seçilemiyor (arşivleniyor)',
+                                        'POS: Arşiv tablosu — tahsil edilmiş günler altta mor rengiyle listeleniyor',
+                                    ],
+                                ],
                                 [
                                     'version' => 'v2.5.3',
                                     'date'    => '23 Mayıs 2026',
