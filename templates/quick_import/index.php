@@ -222,9 +222,21 @@ $defaultPersonIdx = 0; // peopleList'teki ilk kişi
             <select id="pEntrySelect" class="select-input" style="width:100%;"
                     onchange="document.getElementById('pEntryId').value=this.value; recalc();">
                 <option value="">— Tarih seçin —</option>
+                <?php if ($todayHasEntry): ?>
+                    <?php foreach ($entries as $e): if ($e['entry_date'] === date('Y-m-d')): ?>
+                    <option value="<?= $e['id'] ?>" selected style="font-weight:700; color:var(--accent);">
+                        📅 Bugün — <?= date('d.m.Y') ?>
+                    </option>
+                    <?php endif; endforeach; ?>
+                <?php elseif ($todayMonth): ?>
+                    <option value="today" selected style="font-weight:700; color:var(--accent);">
+                        📅 Bugün — <?= date('d.m.Y') ?> (otomatik oluşturulur)
+                    </option>
+                <?php endif; ?>
                 <?php
                 $lastMonth = '';
                 foreach ($entries as $e):
+                    if ($e['entry_date'] === date('Y-m-d')) continue; // zaten üstte gösterildi
                     $mKey = $e['year'] . '-' . str_pad($e['month'], 2, '0', STR_PAD_LEFT);
                     if ($mKey !== $lastMonth):
                         if ($lastMonth !== '') echo '</optgroup>';
@@ -620,5 +632,13 @@ function buildAndSubmit() {
     document.getElementById('saveForm').submit();
 }
 
-document.addEventListener('DOMContentLoaded', () => { load(); lucide.createIcons(); });
+document.addEventListener('DOMContentLoaded', function() {
+    load();
+    lucide.createIcons();
+    // Sayfa açılınca dropdown'da seçili olan değeri pEntryId'ye yaz
+    var sel = document.getElementById('pEntrySelect');
+    if (sel && sel.value) {
+        document.getElementById('pEntryId').value = sel.value;
+    }
+});
 </script>

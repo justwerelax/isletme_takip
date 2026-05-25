@@ -29,6 +29,20 @@ class QuickImportController {
             "SELECT id, name FROM staff WHERE is_active = 1 ORDER BY name ASC"
         );
 
+        // Bugün için daily_entry var mı? Yoksa "bugün oluştur" seçeneği için month bilgisi
+        $today         = date('Y-m-d');
+        $todayHasEntry = false;
+        foreach ($entries as $e) {
+            if ($e['entry_date'] === $today) { $todayHasEntry = true; break; }
+        }
+        $todayMonth = null;
+        if (!$todayHasEntry) {
+            $todayMonth = Database::fetch(
+                "SELECT id FROM months WHERE year = ? AND month = ? AND is_locked = 0",
+                [(int)date('Y'), (int)date('n')]
+            );
+        }
+
         $pageTitle   = 'Hızlı Gider Girişi';
         $currentPage = 'quick_import';
         require BASE_PATH . '/templates/layout.php';
@@ -40,8 +54,39 @@ class QuickImportController {
             header('Location: ?page=quick_import'); exit;
         }
 
-        $entryId = (int)($_POST['entry_id'] ?? 0);
-        $items   = $_POST['items'] ?? [];
+        $entryIdRaw = $_POST['entry_id'] ?? '';
+        $items      = $_POST['items'] ?? [];
+
+        // Özel değer: "today" → bugün için giriş bul ya da oluştur
+        if ($entryIdRaw === 'today') {
+            $today      = date('Y-m-d');
+            $todayMonth = Database::fetch(
+                "SELECT id FROM months WHERE year = ? AND month = ? AND is_locked = 0",
+                [(int)date('Y'), (int)date('n')]
+            );
+            if (!$todayMonth) {
+                $_SESSION['flash_error'] = 'Bu ay için aktif (kilitli olmayan) ay kaydı bulunamadı.';
+                header('Location: ?page=quick_import'); exit;
+            }
+            $existing = Database::fetch(
+                "SELECT id FROM daily_entries WHERE entry_date = ? AND month_id = ?",
+                [$today, $todayMonth['id']]
+            );
+            if ($existing) {
+                $entryId = (int)$existing['id'];
+            } else {
+                $entryId = Database::insert('daily_entries', [
+                    'month_id'         => $todayMonth['id'],
+                    'entry_date'       => $today,
+                    'revenue'          => 0,
+                    'external_revenue' => 0,
+                    'pos_amount'       => 0,
+                    'notes'            => '',
+                ]);
+            }
+        } else {
+            $entryId = (int)$entryIdRaw;
+        }
 
         if (!$entryId) {
             $_SESSION['flash_error'] = 'Günlük giriş seçilmedi.';
