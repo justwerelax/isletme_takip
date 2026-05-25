@@ -272,7 +272,6 @@ $defaultPersonIdx = 0; // peopleList'teki ilk kişi
 
     <!-- form: onsubmit yok, buton type=button, JS manuel submit ediyor -->
     <form id="saveForm" method="POST" action="?page=quick_import&action=save">
-        <input type="hidden" name="entry_id" id="pEntryId" value="">
         <div id="saveContainer"></div>
         <div class="qi-panel-footer">
             <div>
@@ -554,13 +553,19 @@ function recalc() {
 }
 
 function buildAndSubmit() {
-    const entryId = document.getElementById('pEntryId').value;
+    var entryId = document.getElementById('pEntryId').value;
     if (!entryId) { alert('Lütfen bir tarih seçin.'); return; }
 
-    const container = document.getElementById('saveContainer');
+    var container = document.getElementById('saveContainer');
     container.innerHTML = '';
-    let idx = 0;
-    let missingPerson = false;
+
+    // entry_id her zaman ilk olarak forma eklenir (input form dışında olduğu için)
+    var eiInput = document.createElement('input');
+    eiInput.type = 'hidden'; eiInput.name = 'entry_id'; eiInput.value = entryId;
+    container.appendChild(eiInput);
+
+    var idx = 0;
+    var missingPerson = false;
 
     document.querySelectorAll('#panelBody tr').forEach(function(tr) {
         if (tr.dataset.excluded === '1') return;
