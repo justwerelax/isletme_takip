@@ -552,66 +552,162 @@ function recalc() {
     document.getElementById('pSaveBtn').disabled = (count===0 || !ok);
 }
 
-function buildAndSubmit() {
-    var entryId = document.getElementById('pEntryId').value;
-    if (!entryId) { alert('Lütfen bir tarih seçin.'); return; }
-
-    var container = document.getElementById('saveContainer');
-    container.innerHTML = '';
-
-    // entry_id her zaman ilk olarak forma eklenir (input form dışında olduğu için)
-    var eiInput = document.createElement('input');
-    eiInput.type = 'hidden'; eiInput.name = 'entry_id'; eiInput.value = entryId;
-    container.appendChild(eiInput);
-
-    var idx = 0;
+// ── Form verilerini topla (kontrol + kayıt için ortak) ──
+function collectItems() {
+    var items = [];
     var missingPerson = false;
 
     document.querySelectorAll('#panelBody tr').forEach(function(tr) {
         if (tr.dataset.excluded === '1') return;
-        const amtInput = tr.querySelector('.pamt');
-        const amount   = amtInput ? parseTR(amtInput.value) : 0;
+        var amtInput = tr.querySelector('.pamt');
+        var amount   = amtInput ? parseTR(amtInput.value) : 0;
         if (amount <= 0) return;
 
-        const notesInput = tr.querySelector('.pnotes');
-        const notes      = notesInput ? notesInput.value.trim() : '';
-        const type       = tr.dataset.type || 'expense';
-
-        function mk(name, val) {
-            var i = document.createElement('input');
-            i.type = 'hidden'; i.name = name; i.value = val;
-            container.appendChild(i);
-        }
+        var notesInput = tr.querySelector('.pnotes');
+        var notes      = notesInput ? notesInput.value.trim() : '';
+        var type       = tr.dataset.type || 'expense';
 
         if (type.startsWith('advance')) {
             var personSel = tr.querySelector('.pperson');
             var raw       = personSel ? personSel.value : '';
             if (!raw) { missingPerson = true; return; }
             var parts = raw.split('|');
-            var pid   = parts[0];
-            var kind  = parts[1] || 'partner';
-            if (!pid)  { missingPerson = true; return; }
-            mk('items[' + idx + '][amount]',    amount);
-            mk('items[' + idx + '][notes]',     notes);
-            mk('items[' + idx + '][type]',      'advance_' + kind);
-            mk('items[' + idx + '][person_id]', pid);
+            var pid = parts[0], kind = parts[1] || 'partner';
+            if (!pid) { missingPerson = true; return; }
+            items.push({ amount: amount, notes: notes, type: 'advance_' + kind, person_id: pid });
         } else {
             var catSel = tr.querySelector('.pcat');
             var catId  = catSel ? catSel.value : '';
             if (!catId) return;
-            mk('items[' + idx + '][amount]',      amount);
-            mk('items[' + idx + '][notes]',       notes);
-            mk('items[' + idx + '][type]',        'expense');
-            mk('items[' + idx + '][category_id]', catId);
+            items.push({ amount: amount, notes: notes, type: 'expense', category_id: catId });
         }
-        idx++;
     });
 
-    if (missingPerson) { alert('Avans satırında kişi seçilmedi!'); return; }
-    if (idx === 0)     { alert('Kaydedilecek geçerli satır yok.'); return; }
+    return { items: items, missingPerson: missingPerson };
+}
+
+// ── Formu doldur ve gönder ──
+function doSubmit(entryId, items) {
+    var container = document.getElementById('saveContainer');
+    container.innerHTML = '';
+
+    function mk(name, val) {
+        var i = document.createElement('input');
+        i.type = 'hidden'; i.name = name; i.value = val;
+        container.appendChild(i);
+    }
+
+    mk('entry_id', entryId);
+    items.forEach(function(item, idx) {
+        mk('items[' + idx + '][amount]', item.amount);
+        mk('items[' + idx + '][notes]',  item.notes);
+        mk('items[' + idx + '][type]',   item.type);
+        if (item.type.startsWith('advance')) {
+            mk('items[' + idx + '][person_id]', item.person_id);
+        } else {
+            mk('items[' + idx + '][category_id]', item.category_id);
+        }
+    });
 
     messages = []; save();
     document.getElementById('saveForm').submit();
+}
+
+// ── Çakışma uyarı modalı ──
+function showConflictModal(conflicts, entryId, items, dateLabel) {
+    var existing = document.getElementById('conflictModal');
+    if (existing) existing.remove();
+
+    var rows = conflicts.map(function(c) {
+        var newAmt = 0;
+        items.forEach(function(it) { if (it.category_id == c.category_id) newAmt += it.amount; });
+        return '<tr>' +
+            '<td style="padding:8px 12px; font-weight:600;">' + escHtml(c.category_name) + '</td>' +
+            '<td style="padding:8px 12px; text-align:right; color:#f59e0b;">' + fmtMoney(parseFloat(c.existing_amount)) + '</td>' +
+            '<td style="padding:8px 12px; text-align:right; color:var(--accent);">+ ' + fmtMoney(newAmt) + '</td>' +
+            '<td style="padding:8px 12px; text-align:right; font-weight:700; color:var(--danger);">' + fmtMoney(parseFloat(c.existing_amount) + newAmt) + '</td>' +
+        '</tr>';
+    }).join('');
+
+    var modal = document.createElement('div');
+    modal.id = 'conflictModal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:3000;display:flex;align-items:center;justify-content:center;';
+    modal.innerHTML = '<div style="background:var(--bg-surface);border-radius:var(--radius-lg);padding:28px;max-width:560px;width:100%;margin:16px;box-shadow:0 20px 60px rgba(0,0,0,.5);">' +
+        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">' +
+            '<span style="font-size:24px;">⚠️</span>' +
+            '<h3 style="margin:0;font-size:16px;">Bu tarihte zaten gider var!</h3>' +
+        '</div>' +
+        '<p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">' +
+            '<b>' + dateLabel + '</b> tarihinde aşağıdaki kategorilerde kayıt mevcut:' +
+        '</p>' +
+        '<table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:18px;">' +
+            '<thead><tr style="background:var(--bg-hover);font-size:11px;color:var(--text-muted);">' +
+                '<th style="padding:8px 12px;text-align:left;">Kategori</th>' +
+                '<th style="padding:8px 12px;text-align:right;">Mevcut</th>' +
+                '<th style="padding:8px 12px;text-align:right;">Eklenecek</th>' +
+                '<th style="padding:8px 12px;text-align:right;">Toplam</th>' +
+            '</tr></thead>' +
+            '<tbody>' + rows + '</tbody>' +
+        '</table>' +
+        '<p style="font-size:12px;color:var(--text-muted);margin-bottom:18px;">Yine de devam etmek istiyor musun?</p>' +
+        '<div style="display:flex;gap:10px;justify-content:flex-end;">' +
+            '<button onclick="document.getElementById(\'conflictModal\').remove()" class="btn btn-ghost">İptal</button>' +
+            '<button id="conflictConfirmBtn" class="btn btn-primary">Evet, Ekle</button>' +
+        '</div>' +
+    '</div>';
+
+    document.body.appendChild(modal);
+    document.getElementById('conflictConfirmBtn').onclick = function() {
+        modal.remove();
+        doSubmit(entryId, items);
+    };
+}
+
+// ── Ana kaydet fonksiyonu ──
+function buildAndSubmit() {
+    var entryId = document.getElementById('pEntryId').value;
+    if (!entryId) { alert('Lütfen bir tarih seçin.'); return; }
+
+    var collected = collectItems();
+    if (collected.missingPerson) { alert('Avans satırında kişi seçilmedi!'); return; }
+    if (collected.items.length === 0) { alert('Kaydedilecek geçerli satır yok.'); return; }
+
+    // Sadece gider satırları için çakışma kontrol et
+    var expenseCatIds = [];
+    collected.items.forEach(function(it) {
+        if (it.type === 'expense' && it.category_id) expenseCatIds.push(it.category_id);
+    });
+
+    if (expenseCatIds.length === 0) {
+        // Sadece avans var, direkt kaydet
+        doSubmit(entryId, collected.items);
+        return;
+    }
+
+    // AJAX kontrol
+    var fd = new FormData();
+    fd.append('entry_id', entryId);
+    expenseCatIds.forEach(function(cid) { fd.append('category_ids[]', cid); });
+
+    var dateLabel = document.getElementById('pDatePicker').value || entryId;
+    try {
+        var d = new Date(dateLabel);
+        dateLabel = d.toLocaleDateString('tr-TR', {day:'2-digit', month:'2-digit', year:'numeric'});
+    } catch(e) {}
+
+    fetch('?page=quick_import&action=checkConflicts', { method: 'POST', body: fd })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.conflicts && data.conflicts.length > 0) {
+                showConflictModal(data.conflicts, entryId, collected.items, dateLabel);
+            } else {
+                doSubmit(entryId, collected.items);
+            }
+        })
+        .catch(function() {
+            // AJAX hata → yine de kaydet
+            doSubmit(entryId, collected.items);
+        });
 }
 
 // Mevcut entry'leri JS'e aktar (tarih → id map)

@@ -34,6 +34,57 @@ class QuickImportController {
         require BASE_PATH . '/templates/layout.php';
     }
 
+    // AJAX: seçilen tarih+kategoriler için çakışma kontrolü
+    public function checkConflicts() {
+        Auth::requireAdmin();
+        header('Content-Type: application/json; charset=utf-8');
+
+        $entryIdRaw  = trim($_POST['entry_id']    ?? '');
+        $categoryIds = array_map('intval', (array)($_POST['category_ids'] ?? []));
+        $categoryIds = array_filter($categoryIds);
+
+        if (empty($categoryIds)) { echo json_encode(['conflicts' => []]); exit; }
+
+        // entry_id → gerçek daily_entries id'yi bul (tarih string'i gelebilir)
+        $entryId = 0;
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $entryIdRaw)) {
+            $dateObj = \DateTime::createFromFormat('Y-m-d', $entryIdRaw);
+            if ($dateObj) {
+                $month = Database::fetch(
+                    "SELECT id FROM months WHERE year = ? AND month = ? AND is_locked = 0",
+                    [(int)$dateObj->format('Y'), (int)$dateObj->format('n')]
+                );
+                if ($month) {
+                    $existing = Database::fetch(
+                        "SELECT id FROM daily_entries WHERE entry_date = ? AND month_id = ?",
+                        [$entryIdRaw, $month['id']]
+                    );
+                    $entryId = $existing ? (int)$existing['id'] : 0;
+                }
+            }
+        } else {
+            $entryId = (int)$entryIdRaw;
+        }
+
+        if (!$entryId) { echo json_encode(['conflicts' => []]); exit; }
+
+        // Bu giriş + kategoriler için mevcut harcamalar
+        $placeholders = implode(',', array_fill(0, count($categoryIds), '?'));
+        $params       = array_merge([$entryId], $categoryIds);
+        $rows = Database::fetchAll(
+            "SELECT ec.id as category_id, ec.name as category_name,
+                    SUM(de.amount) as existing_amount
+             FROM daily_expenses de
+             JOIN expense_categories ec ON de.category_id = ec.id
+             WHERE de.daily_entry_id = ? AND de.category_id IN ($placeholders)
+             GROUP BY ec.id, ec.name",
+            $params
+        );
+
+        echo json_encode(['conflicts' => $rows]);
+        exit;
+    }
+
     public function save() {
         Auth::requireAdmin();
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
