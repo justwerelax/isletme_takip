@@ -281,7 +281,8 @@ $defaultPersonIdx = 0; // peopleList'teki ilk kişi
         </table>
     </div>
 
-    <form id="saveForm" method="POST" action="?page=quick_import&action=save" onsubmit="return buildAndSubmit(event)">
+    <!-- form: onsubmit yok, buton type=button, JS manuel submit ediyor -->
+    <form id="saveForm" method="POST" action="?page=quick_import&action=save">
         <input type="hidden" name="entry_id" id="pEntryId" value="">
         <div id="saveContainer"></div>
         <div class="qi-panel-footer">
@@ -291,7 +292,7 @@ $defaultPersonIdx = 0; // peopleList'teki ilk kişi
             </div>
             <div style="margin-left:auto; display:flex; gap:10px;">
                 <button type="button" class="btn btn-ghost" onclick="closePanel()">İptal</button>
-                <button type="submit" class="btn btn-primary" id="pSaveBtn" disabled>
+                <button type="button" class="btn btn-primary" id="pSaveBtn" onclick="buildAndSubmit()" disabled>
                     <i data-lucide="save"></i> Kaydet
                 </button>
             </div>
@@ -563,52 +564,59 @@ function recalc() {
     document.getElementById('pSaveBtn').disabled = (count===0 || !ok);
 }
 
-function buildAndSubmit(e) {
-    e.preventDefault();
+function buildAndSubmit() {
     const entryId = document.getElementById('pEntryId').value;
-    if (!entryId) { alert('Lütfen bir tarih seçin.'); return false; }
+    if (!entryId) { alert('Lütfen bir tarih seçin.'); return; }
 
     const container = document.getElementById('saveContainer');
     container.innerHTML = '';
     let idx = 0;
-
     let missingPerson = false;
-    document.querySelectorAll('#panelBody tr').forEach(tr => {
-        if (tr.dataset.excluded==='1') return;
-        const amount = parseTR(tr.querySelector('.pamt')?.value||'0');
-        const notes  = tr.querySelector('.pnotes')?.value?.trim()||'';
-        // type: 'expense' | 'advance' | 'advance_partner' | 'advance_staff'
-        let type = tr.dataset.type || 'expense';
-        if (amount<=0) return;
 
-        const mk = (name,val) => {
-            const i=document.createElement('input'); i.type='hidden'; i.name=name; i.value=val; container.appendChild(i);
-        };
+    document.querySelectorAll('#panelBody tr').forEach(function(tr) {
+        if (tr.dataset.excluded === '1') return;
+        const amtInput = tr.querySelector('.pamt');
+        const amount   = amtInput ? parseTR(amtInput.value) : 0;
+        if (amount <= 0) return;
+
+        const notesInput = tr.querySelector('.pnotes');
+        const notes      = notesInput ? notesInput.value.trim() : '';
+        const type       = tr.dataset.type || 'expense';
+
+        function mk(name, val) {
+            var i = document.createElement('input');
+            i.type = 'hidden'; i.name = name; i.value = val;
+            container.appendChild(i);
+        }
 
         if (type.startsWith('advance')) {
-            const raw = tr.querySelector('.pperson')?.value || '';  // "id|kind"
-            if (!raw) { missingPerson = true; return; }             // kişi seçilmemiş → atla + uyar
-            const [pid, kind] = raw.split('|');
-            if (!pid) { missingPerson = true; return; }
-            const finalType = 'advance_' + kind;
-            mk(`items[${idx}][amount]`,    amount);
-            mk(`items[${idx}][notes]`,     notes);
-            mk(`items[${idx}][type]`,      finalType);
-            mk(`items[${idx}][person_id]`, pid);
+            var personSel = tr.querySelector('.pperson');
+            var raw       = personSel ? personSel.value : '';
+            if (!raw) { missingPerson = true; return; }
+            var parts = raw.split('|');
+            var pid   = parts[0];
+            var kind  = parts[1] || 'partner';
+            if (!pid)  { missingPerson = true; return; }
+            mk('items[' + idx + '][amount]',    amount);
+            mk('items[' + idx + '][notes]',     notes);
+            mk('items[' + idx + '][type]',      'advance_' + kind);
+            mk('items[' + idx + '][person_id]', pid);
         } else {
-            const catId = tr.querySelector('.pcat')?.value || '';
+            var catSel = tr.querySelector('.pcat');
+            var catId  = catSel ? catSel.value : '';
             if (!catId) return;
-            mk(`items[${idx}][amount]`,      amount);
-            mk(`items[${idx}][notes]`,       notes);
-            mk(`items[${idx}][type]`,        'expense');
-            mk(`items[${idx}][category_id]`, catId);
+            mk('items[' + idx + '][amount]',      amount);
+            mk('items[' + idx + '][notes]',       notes);
+            mk('items[' + idx + '][type]',        'expense');
+            mk('items[' + idx + '][category_id]', catId);
         }
         idx++;
     });
 
-    if (missingPerson) { alert('Bazı avans satırlarında kişi seçilmedi. Lütfen "— Kişi seç —" alanlarını doldurun.'); return false; }
-    if (idx===0) { alert('Kaydedilecek geçerli satır yok.'); return false; }
-    messages=[]; save();
+    if (missingPerson) { alert('Avans satırında kişi seçilmedi!'); return; }
+    if (idx === 0)     { alert('Kaydedilecek geçerli satır yok.'); return; }
+
+    messages = []; save();
     document.getElementById('saveForm').submit();
 }
 
