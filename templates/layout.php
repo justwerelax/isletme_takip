@@ -111,7 +111,7 @@
                 <div class="version-badge-wrap" id="versionWrap">
                     <button class="version-badge" id="versionBtn" onclick="toggleChangelog()" title="Sürüm Geçmişi">
                         <i data-lucide="tag" style="width:12px;height:12px;"></i>
-                        v2.7.2
+                        v2.7.3
                     </button>
 
                     <div class="changelog-dropdown" id="changelogDropdown">
@@ -123,6 +123,19 @@
 
                             <?php
                             $changelog = [
+                                [
+                                    'version' => 'v2.7.3',
+                                    'date'    => '26 Mayıs 2026',
+                                    'type'    => 'fix',
+                                    'label'   => 'Düzeltme',
+                                    'items'   => [
+                                        'Hızlı Gider: "emir avans" yazınca yanlış kişi getirme hatası giderildi',
+                                        '"avans" ve rakamlar ayıklandıktan sonra kalan isim ile eşleşme yapılıyor',
+                                        'Eşleşme bulunamazsa "— Kişi seç —" placeholder gösteriliyor (yanlış kişi seçilmiyor)',
+                                        'Kaydet butonunun çalışmama sorunu giderildi (tip ve kişi seçimi doğrulandı)',
+                                        'localStorage temizlendi (v2→v3), eski format çakışması ortadan kalktı',
+                                    ],
+                                ],
                                 [
                                     'version' => 'v2.7.2',
                                     'date'    => '26 Mayıs 2026',

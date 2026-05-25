@@ -304,7 +304,7 @@ $defaultPersonIdx = 0; // peopleList'teki ilk kişi
 const CATS        = <?= $catJson ?>;
 const PEOPLE      = <?= $peopleJson ?>;   // [{id, name, kind:'partner'|'staff'}]
 const DEF_CAT_ID  = <?= $defaultCatId ?>;
-const STORAGE_KEY = 'qi_messages_v2';
+const STORAGE_KEY = 'qi_messages_v3';   // v3 = eski format temizlendi
 
 let messages  = [];
 let msgIdSeq  = 0;
@@ -312,6 +312,9 @@ let msgIdSeq  = 0;
 /* ── Persist ── */
 function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(messages)); }
 function load() {
+    // Eski key'leri temizle
+    localStorage.removeItem('qi_messages_v1');
+    localStorage.removeItem('qi_messages_v2');
     try { messages = JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch(e) { messages = []; }
     msgIdSeq = messages.reduce((m,x) => Math.max(m, x.id), 0);
     renderAll();
@@ -332,23 +335,30 @@ function detectType(text) {
 }
 
 // Hem partners hem staff listesinde isim ara
-// "400 Buğra avans" → "Buğra" → {id, kind:'partner'} veya {id, kind:'staff'}
+// "400 Emir avans" → notes="Emir avans" → "Emir" → eşleşen kişi
+// Eşleşme yoksa null döner (yanlış kişi seçilmez)
 function detectPerson(notes) {
-    if (!notes || !PEOPLE.length) return PEOPLE[0] || null;
-    const lower = notes.toLowerCase();
+    if (!notes || !PEOPLE.length) return null;
 
-    // 1. Tam ad eşleşmesi (longer names first to avoid substring false match)
+    // "avans" kelimesini ve sayıları kaldır, geriye kalan kelimeleri kontrol et
+    const cleaned = notes.replace(/avans/gi, '').replace(/[\d.,+]+/g, '').trim();
+    const lower   = cleaned.toLowerCase();
+
+    // 1. Uzun isimler önce — tam eşleşme
     const sorted = [...PEOPLE].sort((a,b) => b.name.length - a.name.length);
     for (const p of sorted) {
         if (lower.includes(p.name.toLowerCase())) return p;
     }
-    // 2. İlk kelimeyle kısmi eşleşme
-    const firstWord = notes.split(/\s+/)[0].toLowerCase();
-    for (const p of sorted) {
-        const pn = p.name.toLowerCase();
-        if (pn.startsWith(firstWord) || firstWord.startsWith(pn)) return p;
+    // 2. Metnin her kelimesini kişi adlarıyla karşılaştır (startsWith)
+    const words = lower.split(/\s+/).filter(w => w.length >= 2);
+    for (const word of words) {
+        for (const p of sorted) {
+            const pn = p.name.toLowerCase();
+            if (pn.startsWith(word) || word.startsWith(pn)) return p;
+        }
     }
-    return PEOPLE[0] || null;
+    // 3. Eşleşme yok → null (yanlış kişi gösterme)
+    return null;
 }
 
 function parseMsg(text) {
@@ -373,15 +383,15 @@ function sendMsg() {
         const type   = detectType(part);
         let person   = null;
         if (type === 'advance') person = detectPerson(parsed.notes);
-        // advance_partner veya advance_staff tipini person.kind'dan türet
-        const finalType = type === 'advance' && person ? 'advance_' + person.kind : type;
+        // Kişi bulunduysa advance_partner/advance_staff; bulunamadıysa advance kalır (panelde seçilir)
+        const finalType = (type === 'advance' && person) ? 'advance_' + person.kind : type;
         messages.push({
             id: ++msgIdSeq, text: part,
             amount: parsed.amount, notes: parsed.notes,
             type: finalType,
-            personId:   person ? person.id   : null,
-            personKind: person ? person.kind : null,
-            personName: person ? person.name : null,
+            personId:   person?.id   ?? null,
+            personKind: person?.kind ?? null,
+            personName: person?.name ?? null,
             ts: Date.now()
         });
     });
@@ -437,7 +447,9 @@ function catOptions(selId) {
 function personOptions(selId, selKind) {
     const partners = PEOPLE.filter(p=>p.kind==='partner');
     const staff    = PEOPLE.filter(p=>p.kind==='staff');
-    let html = '';
+    // Eşleşme yoksa placeholder
+    const noSel = (!selId) ? 'selected' : '';
+    let html = `<option value="" ${noSel} style="color:#9ca3af;">— Kişi seç —</option>`;
     if (partners.length) {
         html += '<optgroup label="Ortaklar">';
         partners.forEach(p => {
@@ -560,31 +572,41 @@ function buildAndSubmit(e) {
     container.innerHTML = '';
     let idx = 0;
 
+    let missingPerson = false;
     document.querySelectorAll('#panelBody tr').forEach(tr => {
         if (tr.dataset.excluded==='1') return;
         const amount = parseTR(tr.querySelector('.pamt')?.value||'0');
         const notes  = tr.querySelector('.pnotes')?.value?.trim()||'';
-        const type   = tr.dataset.type||'expense';
+        // type: 'expense' | 'advance' | 'advance_partner' | 'advance_staff'
+        let type = tr.dataset.type || 'expense';
         if (amount<=0) return;
 
         const mk = (name,val) => {
             const i=document.createElement('input'); i.type='hidden'; i.name=name; i.value=val; container.appendChild(i);
         };
-        mk(`items[${idx}][amount]`, amount);
-        mk(`items[${idx}][notes]`,  notes);
-        mk(`items[${idx}][type]`,   type);
 
         if (type.startsWith('advance')) {
-            const raw  = tr.querySelector('.pperson')?.value || '';  // "id|kind"
-            const [pid] = raw.split('|');
+            const raw = tr.querySelector('.pperson')?.value || '';  // "id|kind"
+            if (!raw) { missingPerson = true; return; }             // kişi seçilmemiş → atla + uyar
+            const [pid, kind] = raw.split('|');
+            if (!pid) { missingPerson = true; return; }
+            const finalType = 'advance_' + kind;
+            mk(`items[${idx}][amount]`,    amount);
+            mk(`items[${idx}][notes]`,     notes);
+            mk(`items[${idx}][type]`,      finalType);
             mk(`items[${idx}][person_id]`, pid);
         } else {
             const catId = tr.querySelector('.pcat')?.value || '';
+            if (!catId) return;
+            mk(`items[${idx}][amount]`,      amount);
+            mk(`items[${idx}][notes]`,       notes);
+            mk(`items[${idx}][type]`,        'expense');
             mk(`items[${idx}][category_id]`, catId);
         }
         idx++;
     });
 
+    if (missingPerson) { alert('Bazı avans satırlarında kişi seçilmedi. Lütfen "— Kişi seç —" alanlarını doldurun.'); return false; }
     if (idx===0) { alert('Kaydedilecek geçerli satır yok.'); return false; }
     messages=[]; save();
     document.getElementById('saveForm').submit();
