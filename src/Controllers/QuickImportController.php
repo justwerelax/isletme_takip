@@ -29,20 +29,6 @@ class QuickImportController {
             "SELECT id, name FROM staff WHERE is_active = 1 ORDER BY name ASC"
         );
 
-        // Bugün için daily_entry var mı? Yoksa "bugün oluştur" seçeneği için month bilgisi
-        $today         = date('Y-m-d');
-        $todayHasEntry = false;
-        foreach ($entries as $e) {
-            if ($e['entry_date'] === $today) { $todayHasEntry = true; break; }
-        }
-        $todayMonth = null;
-        if (!$todayHasEntry) {
-            $todayMonth = Database::fetch(
-                "SELECT id FROM months WHERE year = ? AND month = ? AND is_locked = 0",
-                [(int)date('Y'), (int)date('n')]
-            );
-        }
-
         $pageTitle   = 'Hızlı Gider Girişi';
         $currentPage = 'quick_import';
         require BASE_PATH . '/templates/layout.php';
@@ -54,30 +40,35 @@ class QuickImportController {
             header('Location: ?page=quick_import'); exit;
         }
 
-        $entryIdRaw = $_POST['entry_id'] ?? '';
+        $entryIdRaw = trim($_POST['entry_id'] ?? '');
         $items      = $_POST['items'] ?? [];
 
-        // Özel değer: "today" → bugün için giriş bul ya da oluştur
-        if ($entryIdRaw === 'today') {
-            $today      = date('Y-m-d');
-            $todayMonth = Database::fetch(
+        // entry_id bir tarih string'i mi? (YYYY-MM-DD) → bul veya oluştur
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $entryIdRaw)) {
+            $targetDate = $entryIdRaw;
+            $dateObj    = \DateTime::createFromFormat('Y-m-d', $targetDate);
+            if (!$dateObj) {
+                $_SESSION['flash_error'] = 'Geçersiz tarih.';
+                header('Location: ?page=quick_import'); exit;
+            }
+            $targetMonth = Database::fetch(
                 "SELECT id FROM months WHERE year = ? AND month = ? AND is_locked = 0",
-                [(int)date('Y'), (int)date('n')]
+                [(int)$dateObj->format('Y'), (int)$dateObj->format('n')]
             );
-            if (!$todayMonth) {
-                $_SESSION['flash_error'] = 'Bu ay için aktif (kilitli olmayan) ay kaydı bulunamadı.';
+            if (!$targetMonth) {
+                $_SESSION['flash_error'] = 'Seçilen tarihin ayı sistemde yok ya da kilitli. Önce Ay Yönetimi\'nden ay ekleyin.';
                 header('Location: ?page=quick_import'); exit;
             }
             $existing = Database::fetch(
                 "SELECT id FROM daily_entries WHERE entry_date = ? AND month_id = ?",
-                [$today, $todayMonth['id']]
+                [$targetDate, $targetMonth['id']]
             );
             if ($existing) {
                 $entryId = (int)$existing['id'];
             } else {
-                $entryId = Database::insert('daily_entries', [
-                    'month_id'         => $todayMonth['id'],
-                    'entry_date'       => $today,
+                $entryId = (int)Database::insert('daily_entries', [
+                    'month_id'         => $targetMonth['id'],
+                    'entry_date'       => $targetDate,
                     'revenue'          => 0,
                     'external_revenue' => 0,
                     'pos_amount'       => 0,

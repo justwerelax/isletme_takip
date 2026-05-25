@@ -219,35 +219,12 @@ $defaultPersonIdx = 0; // peopleList'teki ilk kişi
     <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; margin-bottom:16px;">
         <div>
             <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:5px;">Tarih</label>
-            <select id="pEntrySelect" class="select-input" style="width:100%;"
-                    onchange="document.getElementById('pEntryId').value=this.value; recalc();">
-                <option value="">— Tarih seçin —</option>
-                <?php if ($todayHasEntry): ?>
-                    <?php foreach ($entries as $e): if ($e['entry_date'] === date('Y-m-d')): ?>
-                    <option value="<?= $e['id'] ?>" selected style="font-weight:700; color:var(--accent);">
-                        📅 Bugün — <?= date('d.m.Y') ?>
-                    </option>
-                    <?php endif; endforeach; ?>
-                <?php elseif ($todayMonth): ?>
-                    <option value="today" selected style="font-weight:700; color:var(--accent);">
-                        📅 Bugün — <?= date('d.m.Y') ?> (otomatik oluşturulur)
-                    </option>
-                <?php endif; ?>
-                <?php
-                $lastMonth = '';
-                foreach ($entries as $e):
-                    if ($e['entry_date'] === date('Y-m-d')) continue; // zaten üstte gösterildi
-                    $mKey = $e['year'] . '-' . str_pad($e['month'], 2, '0', STR_PAD_LEFT);
-                    if ($mKey !== $lastMonth):
-                        if ($lastMonth !== '') echo '</optgroup>';
-                        echo '<optgroup label="' . $monthNames[(int)$e['month']] . ' ' . $e['year'] . '">';
-                        $lastMonth = $mKey;
-                    endif;
-                ?>
-                <option value="<?= $e['id'] ?>"><?= date('d.m.Y', strtotime($e['entry_date'])) ?></option>
-                <?php endforeach; ?>
-                <?php if ($lastMonth !== '') echo '</optgroup>'; ?>
-            </select>
+            <input type="date" id="pDatePicker" class="select-input" style="width:100%;"
+                   value="<?= date('Y-m-d') ?>"
+                   max="<?= date('Y-m-d') ?>"
+                   onchange="onDateChange(this.value); recalc();">
+            <div id="dateHint" style="font-size:11px; margin-top:4px; color:var(--text-muted);"></div>
+            <input type="hidden" id="pEntryId" name="entry_id" value="<?= date('Y-m-d') ?>">
         </div>
         <div>
             <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:5px;">Varsayılan Kategori (Gider)</label>
@@ -632,13 +609,31 @@ function buildAndSubmit() {
     document.getElementById('saveForm').submit();
 }
 
+// Mevcut entry'leri JS'e aktar (tarih → id map)
+var ENTRY_MAP = {
+<?php foreach ($entries as $e): ?>
+    "<?= $e['entry_date'] ?>": <?= $e['id'] ?>,
+<?php endforeach; ?>
+};
+
+function onDateChange(dateVal) {
+    if (!dateVal) return;
+    var entryId = ENTRY_MAP[dateVal] || dateVal; // varsa id, yoksa tarih string'i
+    document.getElementById('pEntryId').value = entryId;
+    var hint = document.getElementById('dateHint');
+    if (ENTRY_MAP[dateVal]) {
+        hint.textContent = '✓ Bu tarihte giriş var, üzerine eklenecek.';
+        hint.style.color = 'var(--success)';
+    } else {
+        hint.textContent = '⚡ Bu tarih için otomatik giriş oluşturulacak.';
+        hint.style.color = '#f59e0b';
+    }
+    recalc();
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     load();
     lucide.createIcons();
-    // Sayfa açılınca dropdown'da seçili olan değeri pEntryId'ye yaz
-    var sel = document.getElementById('pEntrySelect');
-    if (sel && sel.value) {
-        document.getElementById('pEntryId').value = sel.value;
-    }
+    onDateChange(document.getElementById('pDatePicker').value);
 });
 </script>
