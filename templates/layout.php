@@ -111,7 +111,7 @@
                 <div class="version-badge-wrap" id="versionWrap">
                     <button class="version-badge" id="versionBtn" onclick="toggleChangelog()" title="Sürüm Geçmişi">
                         <i data-lucide="tag" style="width:12px;height:12px;"></i>
-                        v2.7.1
+                        v2.7.2
                     </button>
 
                     <div class="changelog-dropdown" id="changelogDropdown">
@@ -123,6 +123,19 @@
 
                             <?php
                             $changelog = [
+                                [
+                                    'version' => 'v2.7.2',
+                                    'date'    => '26 Mayıs 2026',
+                                    'type'    => 'feature',
+                                    'label'   => 'Yeni Özellik',
+                                    'items'   => [
+                                        'Hızlı Gider: Avans desteği eklendi',
+                                        '"avans" kelimesi geçen satırlar otomatik AVANS olarak işaretlenir (mavi balon)',
+                                        'Kaydet panelinde Gider / Avans toggle ile tür değiştirilebilir',
+                                        'Avans satırında ortak seçici, gider satırında kategori seçici gösterilir',
+                                        'Varsayılan ortak panelden toplu uygulanabilir',
+                                    ],
+                                ],
                                 [
                                     'version' => 'v2.7.1',
                                     'date'    => '25 Mayıs 2026',

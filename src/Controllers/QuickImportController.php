@@ -6,7 +6,7 @@ class QuickImportController {
 
         // Aktif (kilitli olmayan) günlük girişler — son 60 gün
         $entries = Database::fetchAll(
-            "SELECT de.id, de.entry_date, m.year, m.month
+            "SELECT de.id, de.entry_date, m.id as month_id, m.year, m.month
              FROM daily_entries de
              JOIN months m ON de.month_id = m.id
              WHERE m.is_locked = 0
@@ -17,6 +17,11 @@ class QuickImportController {
         // Gider kategorileri
         $categories = Database::fetchAll(
             "SELECT id, name FROM expense_categories WHERE is_active = 1 ORDER BY name ASC"
+        );
+
+        // Avans ortakları (kasa hariç)
+        $partners = Database::fetchAll(
+            "SELECT id, name FROM partners WHERE is_active = 1 AND is_cash_reserve = 0 ORDER BY sort_order, name"
         );
 
         $pageTitle   = 'Hızlı Gider Girişi';
@@ -39,7 +44,8 @@ class QuickImportController {
         }
 
         $entry = Database::fetch(
-            "SELECT de.*, m.is_locked FROM daily_entries de
+            "SELECT de.*, m.id as month_id, m.is_locked, m.year, m.month
+             FROM daily_entries de
              JOIN months m ON de.month_id = m.id
              WHERE de.id = ?",
             [$entryId]
@@ -52,27 +58,41 @@ class QuickImportController {
 
         $count = 0;
         foreach ($items as $item) {
-            $amount = $this->parseTRAmount((string)($item['amount'] ?? ''));
-            $catId  = (int)($item['category_id'] ?? 0);
-            $notes  = trim($item['notes'] ?? '');
+            $amount  = $this->parseTRAmount((string)($item['amount'] ?? ''));
+            $type    = $item['type'] ?? 'expense'; // 'expense' | 'advance'
+            $notes   = trim($item['notes'] ?? '');
 
-            if ($amount <= 0 || !$catId) continue;
+            if ($amount <= 0) continue;
 
-            Database::insert('daily_expenses', [
-                'daily_entry_id' => $entryId,
-                'category_id'    => $catId,
-                'amount'         => $amount,
-                'notes'          => $notes,
-            ]);
+            if ($type === 'advance') {
+                $partnerId = (int)($item['partner_id'] ?? 0);
+                if (!$partnerId) continue;
+                Database::insert('advances', [
+                    'month_id'     => $entry['month_id'],
+                    'partner_id'   => $partnerId,
+                    'advance_date' => $entry['entry_date'],
+                    'amount'       => $amount,
+                    'description'  => $notes,
+                ]);
+            } else {
+                $catId = (int)($item['category_id'] ?? 0);
+                if (!$catId) continue;
+                Database::insert('daily_expenses', [
+                    'daily_entry_id' => $entryId,
+                    'category_id'    => $catId,
+                    'amount'         => $amount,
+                    'notes'          => $notes,
+                ]);
+            }
             $count++;
         }
 
         if ($count === 0) {
-            $_SESSION['flash_error'] = 'Kaydedilecek geçerli gider bulunamadı.';
+            $_SESSION['flash_error'] = 'Kaydedilecek geçerli giriş bulunamadı.';
             header('Location: ?page=quick_import'); exit;
         }
 
-        $_SESSION['flash_success'] = $count . ' gider başarıyla eklendi.';
+        $_SESSION['flash_success'] = $count . ' kayıt başarıyla eklendi.';
         header('Location: ?page=entries');
         exit;
     }
@@ -87,8 +107,8 @@ class QuickImportController {
         } elseif (strpos($val, ',') !== false) {
             $val = str_replace(',', '.', $val);
         } elseif (strpos($val, '.') !== false) {
-            $parts   = explode('.', $val);
-            $last    = end($parts);
+            $parts = explode('.', $val);
+            $last  = end($parts);
             if (count($parts) > 2 || strlen($last) === 3) {
                 $val = str_replace('.', '', $val);
             }
