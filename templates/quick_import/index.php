@@ -316,6 +316,23 @@ function detectType(text) {
     return /avans/i.test(text) ? 'advance' : 'expense';
 }
 
+// Metindeki ilk kelimeyi partner adlarıyla eşleştir
+// "400 Buğra avans" → notes="Buğra avans" → ilk token "Buğra" → partner id
+function detectPartner(notes) {
+    if (!notes) return DEF_PART_ID;
+    const lower = notes.toLowerCase();
+    // Önce tam eşleşme dene
+    for (const p of PARTNERS) {
+        if (lower.includes(p.name.toLowerCase())) return p.id;
+    }
+    // İlk kelimeyle kısmi eşleşme dene
+    const firstWord = notes.split(/\s+/)[0].toLowerCase();
+    for (const p of PARTNERS) {
+        if (p.name.toLowerCase().startsWith(firstWord) || firstWord.startsWith(p.name.toLowerCase())) return p.id;
+    }
+    return DEF_PART_ID;
+}
+
 function parseMsg(text) {
     const m = text.match(/^([+]?[\d.,]+)\s+(.+)$/);
     if (m) return { amount: parseTR(m[1]), notes: m[2].trim() };
@@ -334,9 +351,10 @@ function sendMsg() {
     const parts = raw.split(/\s*,\s*(?=\S)/);
     parts.forEach(part => {
         part = part.trim(); if (!part) return;
-        const parsed = parseMsg(part);
-        const type   = detectType(part);
-        messages.push({ id: ++msgIdSeq, text: part, amount: parsed.amount, notes: parsed.notes, type, ts: Date.now() });
+        const parsed    = parseMsg(part);
+        const type      = detectType(part);
+        const partnerId = type === 'advance' ? detectPartner(parsed.notes) : DEF_PART_ID;
+        messages.push({ id: ++msgIdSeq, text: part, amount: parsed.amount, notes: parsed.notes, type, partnerId, ts: Date.now() });
     });
 
     save(); renderAll();
@@ -354,12 +372,22 @@ function fmtTime(ts) { const d=new Date(ts); return String(d.getHours()).padStar
 function fmtMoney(n) { return '₺'+n.toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function escHtml(s)  { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+function partnerName(id) {
+    const p = PARTNERS.find(p => p.id == id);
+    return p ? p.name : '';
+}
+
 function renderAll() {
     const area = document.getElementById('chatArea');
     area.innerHTML = messages.map(m => {
         const isAdv   = m.type === 'advance';
         const amtHtml = m.amount > 0 ? `<span class="qi-bubble-amount">${fmtMoney(m.amount)}</span>` : '';
-        const pill    = isAdv ? `<span class="qi-type-pill pill-avans">AVANS</span>` : '';
+        // Avans balonunda → ortak adı rozeti göster
+        let pill = '';
+        if (isAdv) {
+            const pName = partnerName(m.partnerId);
+            pill = `<span class="qi-type-pill pill-avans">AVANS${pName ? ' · ' + escHtml(pName) : ''}</span>`;
+        }
         const notesTxt = escHtml(m.notes || (m.amount ? '' : m.text));
         return `<div class="qi-bubble-wrap">
             <button class="qi-del-btn" onclick="delMsg(${m.id})" title="Sil">×</button>
@@ -380,9 +408,10 @@ let panelRowSeq = 0;
 function catOptions(selId) { return CATS.map(c=>`<option value="${c.id}" ${c.id==selId?'selected':''}>${c.name}</option>`).join(''); }
 function partnerOptions(selId) { return PARTNERS.map(p=>`<option value="${p.id}" ${p.id==selId?'selected':''}>${p.name}</option>`).join(''); }
 
-function makeSelectHtml(type, rowId) {
+function makeSelectHtml(type, partnerId) {
     if (type === 'advance') {
-        return `<select class="psel ppartner" onchange="recalc()">${partnerOptions(DEF_PART_ID)}</select>`;
+        const pid = partnerId || DEF_PART_ID;
+        return `<select class="psel ppartner" onchange="recalc()">${partnerOptions(pid)}</select>`;
     }
     return `<select class="psel pcat" onchange="recalc()">${catOptions(DEF_CAT_ID)}</select>`;
 }
@@ -394,7 +423,7 @@ function openPanel() {
     tbody.innerHTML = messages.map(m => {
         const id  = ++panelRowSeq;
         const isAdv = m.type === 'advance';
-        return `<tr id="pr-${id}" data-excluded="0" data-type="${m.type}" class="${isAdv?'is-adv':''}">
+        return `<tr id="pr-${id}" data-excluded="0" data-type="${m.type}" data-partner-id="${m.partnerId||DEF_PART_ID}" class="${isAdv?'is-adv':''}">
             <td style="color:var(--text-muted);font-size:11px;text-align:center;">${id}</td>
             <td>
                 <div class="type-toggle">
@@ -404,7 +433,7 @@ function openPanel() {
             </td>
             <td><input class="pamt" type="text" value="${m.amount>0?m.amount:''}" oninput="recalc()" inputmode="decimal" placeholder="0"></td>
             <td><input class="pnotes" type="text" value="${escHtml(m.notes||(m.amount?'':m.text))}"></td>
-            <td id="psel-${id}">${makeSelectHtml(m.type, id)}</td>
+            <td id="psel-${id}">${makeSelectHtml(m.type, m.partnerId)}</td>
             <td><button type="button" class="pex" onclick="toggleExc(${id})" title="Hariç tut">×</button></td>
         </tr>`;
     }).join('');
@@ -424,7 +453,8 @@ function setType(id, type) {
         if (btn.textContent.trim() === 'Gider' && !isAdv) btn.classList.add('active-exp');
         if (btn.textContent.trim() === 'Avans' && isAdv)  btn.classList.add('active-adv');
     });
-    document.getElementById('psel-' + id).innerHTML = makeSelectHtml(type, id);
+    const storedPid = parseInt(tr.dataset.partnerId) || DEF_PART_ID;
+    document.getElementById('psel-' + id).innerHTML = makeSelectHtml(type, storedPid);
     recalc();
 }
 
