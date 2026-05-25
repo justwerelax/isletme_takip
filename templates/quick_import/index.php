@@ -1,10 +1,8 @@
 <?php
 $monthNames = ['','Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+$catJson    = json_encode(array_values($categories), JSON_UNESCAPED_UNICODE);
 
-// Kategorileri JS için hazırla
-$catJson = json_encode(array_values($categories), JSON_UNESCAPED_UNICODE);
-
-// Varsayılan kategori: "genel" veya ilki
+// Varsayılan kategori
 $defaultCatId = 0;
 foreach ($categories as $c) {
     if (stripos($c['name'], 'genel') !== false || stripos($c['name'], 'diğer') !== false) {
@@ -13,83 +11,225 @@ foreach ($categories as $c) {
 }
 if (!$defaultCatId && !empty($categories)) $defaultCatId = $categories[0]['id'];
 ?>
-
 <style>
-.qi-card { padding:24px; background:var(--bg-surface); border-radius:var(--radius-lg); border:1px solid var(--border); }
-.qi-step { display:flex; align-items:center; gap:10px; margin-bottom:20px; }
-.qi-step-num { width:26px; height:26px; background:var(--accent); color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0; }
-.qi-step-label { font-size:14px; font-weight:600; color:var(--text-main); }
-
-#wpText {
-    width:100%; min-height:160px; resize:vertical;
-    background:var(--bg-hover); color:var(--text-main);
-    border:1px solid var(--border); border-radius:var(--radius-md);
-    padding:14px; font-size:13px; font-family:inherit;
-    line-height:1.7;
-}
-#wpText::placeholder { color:var(--text-muted); }
-
-#parseBtn { margin-top:10px; }
-
-/* Preview table */
-#previewSection { display:none; margin-top:28px; }
-.preview-table { width:100%; border-collapse:collapse; font-size:13px; }
-.preview-table th { padding:10px 12px; background:var(--bg-hover); color:var(--text-muted); font-size:11px; text-transform:uppercase; letter-spacing:.5px; text-align:left; border-bottom:2px solid var(--border); }
-.preview-table td { padding:9px 10px; border-bottom:1px solid var(--border); vertical-align:middle; }
-.preview-table tr:hover td { background:rgba(14,165,233,0.04); }
-.preview-table tr.excluded td { opacity:.4; }
-
-.qi-amount-input, .qi-notes-input {
-    background:var(--bg-hover); color:var(--text-main);
-    border:1px solid var(--border); border-radius:var(--radius-sm);
-    padding:6px 10px; font-size:13px; font-family:inherit;
-}
-.qi-amount-input { width:110px; text-align:right; }
-.qi-notes-input  { width:100%; }
-.qi-cat-select {
-    background:var(--bg-hover); color:var(--text-main);
-    border:1px solid var(--border); border-radius:var(--radius-sm);
-    padding:6px 8px; font-size:12px; width:100%;
+/* ─── Layout ─── */
+.qi-wrap {
+    display:flex; flex-direction:column;
+    height:calc(100vh - 120px); /* kalan ekran yüksekliği */
+    background:var(--bg-surface);
+    border-radius:var(--radius-lg);
+    border:1px solid var(--border);
+    overflow:hidden;
 }
 
-.qi-exclude-btn {
-    width:28px; height:28px; border-radius:50%;
-    border:1px solid var(--border); background:transparent;
-    color:var(--text-muted); cursor:pointer; font-size:15px; line-height:1;
+/* ─── Header ─── */
+.qi-header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 18px;
+    background:var(--bg-hover);
+    border-bottom:1px solid var(--border);
+    flex-shrink:0;
+}
+.qi-header-left { display:flex; align-items:center; gap:10px; }
+.qi-avatar {
+    width:38px; height:38px; border-radius:50%;
+    background:linear-gradient(135deg,#25d366,#128c7e);
+    display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:18px;
+}
+.qi-header-title  { font-size:14px; font-weight:700; }
+.qi-header-sub    { font-size:11px; color:var(--text-muted); margin-top:1px; }
+.qi-badge {
+    display:inline-flex; align-items:center; gap:4px;
+    background:rgba(14,165,233,.15); color:var(--accent);
+    font-size:11px; font-weight:600;
+    padding:3px 10px; border-radius:20px; cursor:default;
+}
+#msgCount { font-weight:800; }
+
+/* ─── Chat area ─── */
+.qi-chat {
+    flex:1; overflow-y:auto; overflow-x:hidden;
+    padding:16px 14px;
+    display:flex; flex-direction:column; gap:6px;
+    background:var(--bg-surface);
+    /* WhatsApp-esque subtle pattern */
+    background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,.03) 1px, transparent 0);
+    background-size: 24px 24px;
+}
+.qi-chat:empty::after {
+    content:'Henüz gider yok.\nAşağıdan yazmaya başla 👇';
+    white-space:pre-line;
+    display:block; text-align:center;
+    color:var(--text-muted); font-size:13px;
+    margin:auto; padding-top:60px;
+}
+
+/* Bubble */
+.qi-bubble-wrap {
+    display:flex; justify-content:flex-end; align-items:flex-end; gap:6px;
+}
+.qi-bubble {
+    max-width:72%;
+    background:#005c4b;
+    color:#e9edef;
+    border-radius:12px 12px 2px 12px;
+    padding:8px 12px 6px;
+    position:relative;
+    word-break:break-word;
+    box-shadow:0 1px 3px rgba(0,0,0,.3);
+    cursor:default;
+    transition:opacity .15s;
+}
+.qi-bubble:hover { opacity:.95; }
+.qi-bubble.no-amount { background:#1e293b; }
+.qi-bubble-text { font-size:14px; line-height:1.5; }
+.qi-bubble-amount {
+    display:inline-block;
+    font-weight:800; font-size:15px;
+    color:#25d366; margin-right:5px;
+}
+.qi-bubble-meta {
+    display:flex; align-items:center; justify-content:flex-end;
+    gap:6px; margin-top:2px;
+}
+.qi-bubble-time { font-size:10px; color:rgba(255,255,255,.45); }
+.qi-del-btn {
+    width:20px; height:20px; border-radius:50%;
+    background:rgba(0,0,0,.3); border:none; cursor:pointer;
+    color:rgba(255,255,255,.6); font-size:12px; line-height:1;
+    display:flex; align-items:center; justify-content:center;
+    opacity:0; transition:opacity .15s;
+}
+.qi-bubble-wrap:hover .qi-del-btn { opacity:1; }
+.qi-del-btn:hover { background:rgba(239,68,68,.7); color:#fff; }
+
+/* ─── Input bar ─── */
+.qi-input-bar {
+    display:flex; align-items:center; gap:10px;
+    padding:10px 14px;
+    background:var(--bg-hover);
+    border-top:1px solid var(--border);
+    flex-shrink:0;
+}
+#msgInput {
+    flex:1; background:var(--bg-surface);
+    color:var(--text-main);
+    border:1px solid var(--border);
+    border-radius:24px;
+    padding:10px 16px;
+    font-size:14px; font-family:inherit;
+    outline:none; resize:none;
+    max-height:100px; overflow-y:auto;
+    line-height:1.5;
+}
+#msgInput::placeholder { color:var(--text-muted); }
+#msgInput:focus { border-color:var(--accent); }
+.qi-send-btn {
+    width:42px; height:42px; border-radius:50%; border:none; cursor:pointer;
+    background:#25d366; color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0; transition:transform .1s, background .15s;
+}
+.qi-send-btn:hover  { background:#22c55e; transform:scale(1.05); }
+.qi-send-btn:active { transform:scale(.95); }
+.qi-send-btn svg { width:18px; height:18px; }
+
+/* ─── Giderleştir paneli (modal) ─── */
+.qi-panel-overlay {
+    display:none; position:fixed; inset:0;
+    background:rgba(0,0,0,.6); z-index:2000;
+    align-items:flex-end; justify-content:center;
+}
+.qi-panel-overlay.open { display:flex; }
+.qi-panel {
+    background:var(--bg-surface);
+    border-radius:var(--radius-lg) var(--radius-lg) 0 0;
+    width:100%; max-width:720px;
+    max-height:90vh; overflow-y:auto;
+    padding:24px;
+    animation:slideUp .22s ease;
+}
+@keyframes slideUp { from { transform:translateY(100%); } to { transform:translateY(0); } }
+
+.qi-panel-head {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:18px;
+}
+.qi-panel-head h3 { margin:0; font-size:16px; }
+.qi-close-btn {
+    width:30px; height:30px; border-radius:50%;
+    background:var(--bg-hover); border:1px solid var(--border);
+    color:var(--text-muted); font-size:18px; cursor:pointer;
     display:flex; align-items:center; justify-content:center;
 }
-.qi-exclude-btn:hover { background:rgba(239,68,68,.15); color:var(--danger); border-color:var(--danger); }
-.qi-exclude-btn.excluded { background:rgba(239,68,68,.12); color:var(--danger); }
 
-.qi-summary-bar {
-    display:flex; align-items:center; gap:20px; margin-top:16px;
-    padding:14px 18px;
-    background:rgba(14,165,233,.07);
-    border:1px solid rgba(14,165,233,.2);
-    border-radius:var(--radius-md);
+/* Panel table */
+.qi-ptable { width:100%; border-collapse:collapse; font-size:13px; margin-top:4px; }
+.qi-ptable th { padding:9px 10px; background:var(--bg-hover); color:var(--text-muted); font-size:11px; text-transform:uppercase; letter-spacing:.5px; text-align:left; border-bottom:2px solid var(--border); }
+.qi-ptable td { padding:8px 8px; border-bottom:1px solid var(--border); vertical-align:middle; }
+.qi-ptable tr.exc td { opacity:.35; }
+
+.pamt { width:110px; text-align:right; background:var(--bg-hover); color:var(--text-main); border:1px solid var(--border); border-radius:var(--radius-sm); padding:6px 10px; font-size:13px; }
+.pnotes { width:100%; background:var(--bg-hover); color:var(--text-main); border:1px solid var(--border); border-radius:var(--radius-sm); padding:6px 10px; font-size:13px; }
+.pcat { width:100%; background:var(--bg-hover); color:var(--text-main); border:1px solid var(--border); border-radius:var(--radius-sm); padding:6px 8px; font-size:12px; }
+.pex { width:24px; height:24px; border-radius:50%; border:1px solid var(--border); background:transparent; color:var(--text-muted); cursor:pointer; font-size:13px; display:flex; align-items:center; justify-content:center; }
+.pex:hover, .pex.on { background:rgba(239,68,68,.15); color:var(--danger); border-color:var(--danger); }
+
+.qi-panel-footer {
+    display:flex; align-items:center; gap:16px;
+    margin-top:16px; padding-top:16px;
+    border-top:1px solid var(--border);
 }
-.qi-summary-bar .total-label { font-size:12px; color:var(--text-muted); }
-.qi-summary-bar .total-val   { font-size:18px; font-weight:800; color:var(--accent); }
-.qi-summary-bar .count-val   { font-size:13px; color:var(--text-muted); }
+.qi-total-big { font-size:20px; font-weight:800; color:var(--accent); }
+.qi-count-lbl { font-size:12px; color:var(--text-muted); }
 </style>
 
-<div class="qi-card">
-    <!-- Başlık -->
-    <div style="display:flex; align-items:center; gap:12px; margin-bottom:24px;">
-        <i data-lucide="zap" style="width:22px;height:22px;color:var(--accent);"></i>
-        <h2 style="margin:0; font-size:18px;">Hızlı Gider Girişi</h2>
-        <span style="font-size:12px; color:var(--text-muted); background:var(--bg-hover); padding:3px 10px; border-radius:20px;">WhatsApp'tan yapıştır → kaydet</span>
+<!-- MAIN WRAPPER -->
+<div class="qi-wrap">
+
+    <!-- Header -->
+    <div class="qi-header">
+        <div class="qi-header-left">
+            <div class="qi-avatar">💸</div>
+            <div>
+                <div class="qi-header-title">Hızlı Gider</div>
+                <div class="qi-header-sub">Giderleri yazıp toplu kaydet</div>
+            </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+            <div class="qi-badge"><span id="msgCount">0</span> kalem</div>
+            <button class="btn btn-primary btn-sm" onclick="openPanel()" id="giderBtn" disabled>
+                <i data-lucide="send"></i> Giderleştir
+            </button>
+        </div>
     </div>
 
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:24px;">
+    <!-- Chat area -->
+    <div class="qi-chat" id="chatArea"></div>
 
-        <!-- ADIM 1: Tarih seç -->
+    <!-- Input bar -->
+    <div class="qi-input-bar">
+        <textarea id="msgInput" rows="1" placeholder="2500 mazot, 725 yemek…" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+        <button class="qi-send-btn" onclick="sendMsg()" title="Gönder">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
+    </div>
+</div>
+
+<!-- ── Giderleştir Paneli ── -->
+<div class="qi-panel-overlay" id="panelOverlay" onclick="if(event.target===this)closePanel()">
+<div class="qi-panel">
+    <div class="qi-panel-head">
+        <h3><i data-lucide="list-checks" style="width:18px;height:18px;vertical-align:middle;margin-right:6px;"></i>Giderleştir</h3>
+        <button class="qi-close-btn" onclick="closePanel()">×</button>
+    </div>
+
+    <!-- Tarih + Varsayılan Kategori -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px;">
         <div>
-            <div class="qi-step">
-                <div class="qi-step-num">1</div>
-                <div class="qi-step-label">Gün seç</div>
-            </div>
-            <select id="entrySelect" class="select-input" style="width:100%;" onchange="updateSaveEntryId()">
+            <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:5px;">Tarih</label>
+            <select id="pEntrySelect" class="select-input" style="width:100%;" onchange="document.getElementById('pEntryId').value=this.value; recalc();">
                 <option value="">— Tarih seçin —</option>
                 <?php
                 $lastMonth = '';
@@ -101,276 +241,254 @@ if (!$defaultCatId && !empty($categories)) $defaultCatId = $categories[0]['id'];
                         $lastMonth = $mKey;
                     endif;
                 ?>
-                <option value="<?= $e['id'] ?>">
-                    <?= date('d.m.Y (l)', strtotime($e['entry_date'])) ?>
-                </option>
+                <option value="<?= $e['id'] ?>"><?= date('d.m.Y', strtotime($e['entry_date'])) ?></option>
                 <?php endforeach; ?>
                 <?php if ($lastMonth !== '') echo '</optgroup>'; ?>
             </select>
-            <small style="color:var(--text-muted); font-size:11px; display:block; margin-top:5px;">Sadece kilitli olmayan aylar listelenir.</small>
         </div>
-
-        <!-- ADIM 2: Varsayılan kategori -->
         <div>
-            <div class="qi-step">
-                <div class="qi-step-num">2</div>
-                <div class="qi-step-label">Varsayılan kategori</div>
-            </div>
-            <select id="defaultCat" class="select-input" style="width:100%;" onchange="applyDefaultCatToAll()">
+            <label style="font-size:11px; color:var(--text-muted); display:block; margin-bottom:5px;">Varsayılan Kategori</label>
+            <select id="pDefaultCat" class="select-input" style="width:100%;" onchange="applyDefaultCat()">
                 <?php foreach ($categories as $c): ?>
-                <option value="<?= $c['id'] ?>" <?= $c['id'] == $defaultCatId ? 'selected' : '' ?>>
-                    <?= htmlspecialchars($c['name']) ?>
-                </option>
+                <option value="<?= $c['id'] ?>" <?= $c['id'] == $defaultCatId ? 'selected' : '' ?>><?= htmlspecialchars($c['name']) ?></option>
                 <?php endforeach; ?>
             </select>
-            <small style="color:var(--text-muted); font-size:11px; display:block; margin-top:5px;">Her satırda ayrıca değiştirebilirsin.</small>
         </div>
     </div>
 
-    <!-- ADIM 3: Metin yapıştır -->
-    <div class="qi-step">
-        <div class="qi-step-num">3</div>
-        <div class="qi-step-label">WhatsApp mesajlarını yapıştır</div>
+    <!-- Items table -->
+    <div style="overflow-x:auto;">
+        <table class="qi-ptable">
+            <thead><tr>
+                <th style="width:34px;"></th>
+                <th style="width:120px;">Tutar (₺)</th>
+                <th>Açıklama</th>
+                <th style="width:190px;">Kategori</th>
+                <th style="width:32px;"></th>
+            </tr></thead>
+            <tbody id="panelBody"></tbody>
+        </table>
     </div>
 
-    <textarea id="wpText" placeholder="Örnek:
-200 Alex
-725 yemek
-400 pazar Buğra avans
-2500 kart mangal yazılmamış
-4000 mazot
-316,40 komisyon
-10000 babama"></textarea>
-
-    <div style="display:flex; gap:10px; margin-top:10px;">
-        <button id="parseBtn" class="btn btn-primary" onclick="parseText()">
-            <i data-lucide="scan-text"></i> Parse Et &amp; Önizle
-        </button>
-        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('wpText').value=''; clearPreview();" style="color:var(--text-muted);">
-            <i data-lucide="x"></i> Temizle
-        </button>
-    </div>
-
-    <!-- ÖNIZLEME -->
-    <div id="previewSection">
-        <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px; padding-top:4px; border-top:1px solid var(--border);">
-            <h3 style="margin:0; font-size:14px;">Önizleme</h3>
-            <button class="btn btn-ghost btn-sm" onclick="addRow()" style="font-size:12px;">
-                <i data-lucide="plus"></i> Satır Ekle
-            </button>
-        </div>
-
-        <div style="overflow-x:auto;">
-            <table class="preview-table" id="previewTable">
-                <thead>
-                    <tr>
-                        <th style="width:36px;"></th>
-                        <th style="width:130px;">Tutar (₺)</th>
-                        <th>Açıklama / Not</th>
-                        <th style="width:200px;">Kategori</th>
-                        <th style="width:36px;"></th>
-                    </tr>
-                </thead>
-                <tbody id="previewBody"></tbody>
-            </table>
-        </div>
-
-        <!-- Özet -->
-        <div class="qi-summary-bar">
+    <!-- Footer -->
+    <form id="saveForm" method="POST" action="?page=quick_import&action=save" onsubmit="return buildAndSubmit(event)">
+        <input type="hidden" name="entry_id" id="pEntryId" value="">
+        <div id="saveContainer"></div>
+        <div class="qi-panel-footer">
             <div>
-                <div class="total-label">Toplam</div>
-                <div class="total-val" id="totalVal">₺0</div>
+                <div class="qi-count-lbl" id="pCount">0 kalem</div>
+                <div class="qi-total-big" id="pTotal">₺0</div>
             </div>
-            <div class="count-val" id="countVal">0 kalem</div>
-            <div style="margin-left:auto; display:flex; gap:10px; align-items:center;">
-                <form id="saveForm" method="POST" action="?page=quick_import&action=save" onsubmit="return buildAndSubmit(event)">
-                    <input type="hidden" name="entry_id" id="saveEntryId" value="">
-                    <div id="saveItemsContainer"></div>
-                    <button type="submit" class="btn btn-primary" id="saveBtn" disabled>
-                        <i data-lucide="save"></i> Kaydet
-                    </button>
-                </form>
+            <div style="margin-left:auto; display:flex; gap:10px;">
+                <button type="button" class="btn btn-ghost" onclick="closePanel()">İptal</button>
+                <button type="submit" class="btn btn-primary" id="pSaveBtn" disabled>
+                    <i data-lucide="save"></i> Kaydet
+                </button>
             </div>
         </div>
-    </div>
+    </form>
+</div>
 </div>
 
 <script>
-const CATS = <?= $catJson ?>;
-const DEFAULT_CAT_ID = <?= $defaultCatId ?>;
+const CATS         = <?= $catJson ?>;
+const DEF_CAT_ID   = <?= $defaultCatId ?>;
+const STORAGE_KEY  = 'qi_messages_v1';
 
-function catOptions(selectedId) {
-    return CATS.map(c =>
-        `<option value="${c.id}" ${c.id == selectedId ? 'selected' : ''}>${c.name}</option>`
-    ).join('');
+let messages = []; // [{id, text, amount, notes, ts}]
+let msgIdSeq = 0;
+
+/* ─── Persist ─── */
+function save()    { localStorage.setItem(STORAGE_KEY, JSON.stringify(messages)); }
+function load()    {
+    try { messages = JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch(e) { messages = []; }
+    msgIdSeq = messages.reduce((m,x) => Math.max(m, x.id), 0);
+    renderAll();
 }
 
-let rowCounter = 0;
-
-function makeRow(amount, notes, catId) {
-    catId = catId || parseInt(document.getElementById('defaultCat').value) || DEFAULT_CAT_ID;
-    const id = ++rowCounter;
-    return `<tr id="row-${id}" data-excluded="0">
-        <td style="text-align:center; color:var(--text-muted); font-size:11px;">${id}</td>
-        <td><input type="text" class="qi-amount-input" value="${amount}" oninput="recalc()" inputmode="decimal"></td>
-        <td><input type="text" class="qi-notes-input" value="${escHtml(notes)}" placeholder="açıklama…"></td>
-        <td><select class="qi-cat-select">${catOptions(catId)}</select></td>
-        <td>
-            <button type="button" class="qi-exclude-btn" title="Hariç tut / dahil et" onclick="toggleExclude(${id})">×</button>
-        </td>
-    </tr>`;
-}
-
-function escHtml(s) {
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function toggleExclude(id) {
-    const tr  = document.getElementById('row-' + id);
-    const btn = tr.querySelector('.qi-exclude-btn');
-    const ex  = tr.dataset.excluded === '1';
-    tr.dataset.excluded = ex ? '0' : '1';
-    tr.classList.toggle('excluded', !ex);
-    btn.classList.toggle('excluded', !ex);
-    btn.title = ex ? 'Hariç tut' : 'Dahil et';
-    recalc();
-}
-
+/* ─── Parse ─── */
 function parseTR(s) {
     s = String(s).trim().replace(/^[+]/, '');
-    if (s.includes(',') && s.includes('.')) {
-        s = s.replace(/\./g, '').replace(',', '.');
-    } else if (s.includes(',')) {
-        s = s.replace(',', '.');
-    } else if (s.includes('.')) {
-        const parts = s.split('.');
-        const last  = parts[parts.length - 1];
-        if (parts.length > 2 || last.length === 3) s = s.replace(/\./g, '');
-    }
+    if (s.includes(',') && s.includes('.')) { s = s.replace(/\./g,'').replace(',','.'); }
+    else if (s.includes(','))               { s = s.replace(',','.'); }
+    else if (s.includes('.'))               { const p=s.split('.'); if(p.length>2||p[p.length-1].length===3) s=s.replace(/\./g,''); }
     return parseFloat(s) || 0;
 }
 
+function parseMsg(text) {
+    // Virgülle ayrılmış çoklu gider: "2500 mazot, 400 yemek"
+    // veya tek satır: "2500 mazot"
+    const m = text.match(/^([+]?[\d.,]+)\s+(.+)$/);
+    if (m) return { amount: parseTR(m[1]), notes: m[2].trim() };
+    // Sadece sayı
+    const n = text.match(/^([+]?[\d.,]+)$/);
+    if (n) return { amount: parseTR(n[1]), notes: '' };
+    return { amount: 0, notes: text.trim() };
+}
+
+/* ─── Send ─── */
+function sendMsg() {
+    const input = document.getElementById('msgInput');
+    const raw   = input.value.trim();
+    if (!raw) return;
+
+    // Virgülle ayrılmış birden fazla gider desteği: "2500 mazot, 400 yemek"
+    const parts = raw.split(/\s*,\s*(?=\S)/);
+    parts.forEach(part => {
+        part = part.trim();
+        if (!part) return;
+        const parsed = parseMsg(part);
+        messages.push({ id: ++msgIdSeq, text: part, amount: parsed.amount, notes: parsed.notes, ts: Date.now() });
+    });
+
+    save();
+    renderAll();
+    input.value   = '';
+    input.style.height = '';
+    input.focus();
+}
+
+function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
+}
+function autoResize(el) {
+    el.style.height = '';
+    el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+}
+
+/* ─── Delete ─── */
+function delMsg(id) {
+    messages = messages.filter(m => m.id !== id);
+    save(); renderAll();
+}
+
+/* ─── Render chat ─── */
+function fmtTime(ts) {
+    const d = new Date(ts);
+    return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+}
 function fmtMoney(n) {
     return '₺' + n.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2});
 }
 
-function parseText() {
-    const raw = document.getElementById('wpText').value.trim();
-    if (!raw) return;
+function renderAll() {
+    const area = document.getElementById('chatArea');
+    area.innerHTML = messages.map(m => {
+        const hasAmt = m.amount > 0;
+        const amtHtml = hasAmt ? `<span class="qi-bubble-amount">${fmtMoney(m.amount)}</span>` : '';
+        const notesTxt = hasAmt && m.notes ? escHtml(m.notes) : escHtml(m.text);
+        return `<div class="qi-bubble-wrap">
+            <button class="qi-del-btn" onclick="delMsg(${m.id})" title="Sil">×</button>
+            <div class="qi-bubble ${hasAmt ? '' : 'no-amount'}">
+                <div class="qi-bubble-text">${amtHtml}${notesTxt}</div>
+                <div class="qi-bubble-meta">
+                    <span class="qi-bubble-time">${fmtTime(m.ts)}</span>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
 
-    const lines = raw.split('\n');
-    const parsed = [];
+    // Scroll to bottom
+    area.scrollTop = area.scrollHeight;
 
-    lines.forEach(line => {
-        line = line.trim();
-        if (!line) return;
-
-        // Satır başında sayı varsa: "2500 mazot" veya "+316,40 komisyon"
-        const m = line.match(/^([+]?[\d.,]+)\s+(.+)$/);
-        if (m) {
-            const amount = parseTR(m[1]);
-            const notes  = m[2].trim();
-            if (amount > 0) parsed.push({amount, notes});
-        }
-        // Sadece sayıysa ekle
-        else {
-            const onlyNum = line.match(/^([+]?[\d.,]+)$/);
-            if (onlyNum) {
-                const amount = parseTR(onlyNum[1]);
-                if (amount > 0) parsed.push({amount, notes: ''});
-            }
-        }
-    });
-
-    if (parsed.length === 0) {
-        alert('Ayrıştırılabilecek satır bulunamadı.\n\nFormat: "2500 mazot" gibi sayı + açıklama olmalı.');
-        return;
-    }
-
-    renderRows(parsed);
+    // Badge & button
+    const cnt = messages.length;
+    document.getElementById('msgCount').textContent = cnt;
+    document.getElementById('giderBtn').disabled    = cnt === 0;
 }
 
-function renderRows(items) {
-    const tbody = document.getElementById('previewBody');
-    tbody.innerHTML = items.map(i => makeRow(i.amount, i.notes, 0)).join('');
-    document.getElementById('previewSection').style.display = 'block';
+function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ─── Panel ─── */
+let panelRowSeq = 0;
+
+function catOptions(selId) {
+    return CATS.map(c => `<option value="${c.id}" ${c.id==selId?'selected':''}>${c.name}</option>`).join('');
+}
+
+function openPanel() {
+    if (!messages.length) return;
+    panelRowSeq = 0;
+    const tbody = document.getElementById('panelBody');
+    tbody.innerHTML = messages.map(m => {
+        const id = ++panelRowSeq;
+        return `<tr id="pr-${id}" data-excluded="0">
+            <td style="color:var(--text-muted);font-size:11px;text-align:center;">${id}</td>
+            <td><input class="pamt" type="text" value="${m.amount > 0 ? m.amount : ''}" oninput="recalc()" inputmode="decimal" placeholder="0"></td>
+            <td><input class="pnotes" type="text" value="${escHtml(m.notes || (m.amount ? '' : m.text))}"></td>
+            <td><select class="pcat">${catOptions(DEF_CAT_ID)}</select></td>
+            <td><button type="button" class="pex" onclick="toggleExc(${id})" title="Hariç tut">×</button></td>
+        </tr>`;
+    }).join('');
     recalc();
+    document.getElementById('panelOverlay').classList.add('open');
     lucide.createIcons();
 }
 
-function addRow() {
-    const tbody = document.getElementById('previewBody');
-    tbody.insertAdjacentHTML('beforeend', makeRow('', '', 0));
+function closePanel() { document.getElementById('panelOverlay').classList.remove('open'); }
+
+function toggleExc(id) {
+    const tr  = document.getElementById('pr-' + id);
+    const btn = tr.querySelector('.pex');
+    const ex  = tr.dataset.excluded === '1';
+    tr.dataset.excluded = ex ? '0' : '1';
+    tr.classList.toggle('exc', !ex);
+    btn.classList.toggle('on', !ex);
     recalc();
-    lucide.createIcons();
 }
 
-function clearPreview() {
-    document.getElementById('previewSection').style.display = 'none';
-    document.getElementById('previewBody').innerHTML = '';
-    rowCounter = 0;
-    recalc();
+function applyDefaultCat() {
+    const v = document.getElementById('pDefaultCat').value;
+    document.querySelectorAll('#panelBody .pcat').forEach(s => s.value = v);
 }
 
 function recalc() {
     let total = 0, count = 0;
-    document.querySelectorAll('#previewBody tr').forEach(tr => {
+    document.querySelectorAll('#panelBody tr').forEach(tr => {
         if (tr.dataset.excluded === '1') return;
-        const amt = parseTR(tr.querySelector('.qi-amount-input')?.value || '0');
+        const amt = parseTR(tr.querySelector('.pamt')?.value || '0');
         if (amt > 0) { total += amt; count++; }
     });
-    document.getElementById('totalVal').textContent  = fmtMoney(total);
-    document.getElementById('countVal').textContent  = count + ' kalem';
-    const saveBtn = document.getElementById('saveBtn');
-    if (saveBtn) saveBtn.disabled = (count === 0 || !document.getElementById('saveEntryId').value);
-}
-
-function applyDefaultCatToAll() {
-    const catId = document.getElementById('defaultCat').value;
-    document.querySelectorAll('#previewBody .qi-cat-select').forEach(sel => {
-        sel.value = catId;
-    });
-}
-
-function updateSaveEntryId() {
-    const val = document.getElementById('entrySelect').value;
-    document.getElementById('saveEntryId').value = val;
-    recalc();
+    document.getElementById('pTotal').textContent = fmtMoney(total);
+    document.getElementById('pCount').textContent = count + ' kalem';
+    const entryOk = !!document.getElementById('pEntryId').value;
+    document.getElementById('pSaveBtn').disabled = (count === 0 || !entryOk);
 }
 
 function buildAndSubmit(e) {
     e.preventDefault();
-    const entryId = document.getElementById('saveEntryId').value;
+    const entryId = document.getElementById('pEntryId').value;
     if (!entryId) { alert('Lütfen bir tarih seçin.'); return false; }
 
-    const container = document.getElementById('saveItemsContainer');
+    const container = document.getElementById('saveContainer');
     container.innerHTML = '';
     let idx = 0;
 
-    document.querySelectorAll('#previewBody tr').forEach(tr => {
+    document.querySelectorAll('#panelBody tr').forEach(tr => {
         if (tr.dataset.excluded === '1') return;
-        const amount = parseTR(tr.querySelector('.qi-amount-input')?.value || '0');
-        const catId  = tr.querySelector('.qi-cat-select')?.value || '';
-        const notes  = tr.querySelector('.qi-notes-input')?.value?.trim() || '';
+        const amount = parseTR(tr.querySelector('.pamt')?.value || '0');
+        const catId  = tr.querySelector('.pcat')?.value || '';
+        const notes  = tr.querySelector('.pnotes')?.value?.trim() || '';
         if (amount <= 0 || !catId) return;
 
-        const mkInput = (name, val) => {
-            const inp = document.createElement('input');
-            inp.type = 'hidden';
-            inp.name = name;
-            inp.value = val;
-            container.appendChild(inp);
-        };
-        mkInput(`items[${idx}][amount]`,      amount);
-        mkInput(`items[${idx}][category_id]`, catId);
-        mkInput(`items[${idx}][notes]`,       notes);
+        const mk = (name, val) => { const i=document.createElement('input'); i.type='hidden'; i.name=name; i.value=val; container.appendChild(i); };
+        mk(`items[${idx}][amount]`, amount);
+        mk(`items[${idx}][category_id]`, catId);
+        mk(`items[${idx}][notes]`, notes);
         idx++;
     });
 
     if (idx === 0) { alert('Kaydedilecek geçerli satır yok.'); return false; }
+
+    // Kaydedilen mesajları temizle
+    messages = [];
+    save();
+
     document.getElementById('saveForm').submit();
 }
 
-// Lucide refresh after dynamic content
-document.addEventListener('DOMContentLoaded', () => { lucide.createIcons(); });
+/* ─── Boot ─── */
+document.addEventListener('DOMContentLoaded', () => { load(); lucide.createIcons(); });
 </script>

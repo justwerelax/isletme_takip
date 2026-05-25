@@ -111,7 +111,7 @@
                 <div class="version-badge-wrap" id="versionWrap">
                     <button class="version-badge" id="versionBtn" onclick="toggleChangelog()" title="Sürüm Geçmişi">
                         <i data-lucide="tag" style="width:12px;height:12px;"></i>
-                        v2.7.0
+                        v2.7.1
                     </button>
 
                     <div class="changelog-dropdown" id="changelogDropdown">
@@ -123,6 +123,18 @@
 
                             <?php
                             $changelog = [
+                                [
+                                    'version' => 'v2.7.1',
+                                    'date'    => '25 Mayıs 2026',
+                                    'type'    => 'feature',
+                                    'label'   => 'Yeni Özellik',
+                                    'items'   => [
+                                        'Hızlı Gider v2: WhatsApp benzeri sohbet arayüzü',
+                                        'Satır satır gider yaz, balonlarda görün (localStorage\'da kalır)',
+                                        '"2500 mazot, 400 yemek" gibi virgülle ayrılmış çoklu gider desteği',
+                                        '"Giderleştir" panelinde tarih, kategori seç → toplu kaydet',
+                                    ],
+                                ],
                                 [
                                     'version' => 'v2.7.0',
                                     'date'    => '25 Mayıs 2026',
