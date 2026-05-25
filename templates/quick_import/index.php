@@ -1,7 +1,12 @@
 <?php
 $monthNames = ['','Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
 $catJson     = json_encode(array_values($categories), JSON_UNESCAPED_UNICODE);
-$partnerJson = json_encode(array_values($partners),   JSON_UNESCAPED_UNICODE);
+
+// Birleşik kişi listesi: ortaklar + personel (kind ile ayrıştırılır)
+$peopleList = [];
+foreach ($partners as $p) $peopleList[] = ['id' => $p['id'], 'name' => $p['name'], 'kind' => 'partner'];
+foreach ($staff    as $s) $peopleList[] = ['id' => $s['id'], 'name' => $s['name'], 'kind' => 'staff'];
+$peopleJson = json_encode($peopleList, JSON_UNESCAPED_UNICODE);
 
 // Varsayılan kategori
 $defaultCatId = 0;
@@ -11,7 +16,7 @@ foreach ($categories as $c) {
     }
 }
 if (!$defaultCatId && !empty($categories)) $defaultCatId = $categories[0]['id'];
-$defaultPartnerId = !empty($partners) ? $partners[0]['id'] : 0;
+$defaultPersonIdx = 0; // peopleList'teki ilk kişi
 ?>
 <style>
 /* ─── Layout ─── */
@@ -241,11 +246,22 @@ $defaultPartnerId = !empty($partners) ? $partners[0]['id'] : 0;
             </select>
         </div>
         <div>
-            <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:5px;">Varsayılan Ortak (Avans)</label>
-            <select id="pDefaultPartner" class="select-input" style="width:100%;" onchange="applyDefaultPartner()">
-                <?php foreach ($partners as $p): ?>
-                <option value="<?= $p['id'] ?>"><?= htmlspecialchars($p['name']) ?></option>
-                <?php endforeach; ?>
+            <label style="font-size:11px;color:var(--text-muted);display:block;margin-bottom:5px;">Varsayılan Kişi (Avans)</label>
+            <select id="pDefaultPerson" class="select-input" style="width:100%;" onchange="applyDefaultPerson()">
+                <?php if (!empty($partners)): ?>
+                <optgroup label="Ortaklar">
+                    <?php foreach ($partners as $p): ?>
+                    <option value="<?= $p['id'] ?>|partner"><?= htmlspecialchars($p['name']) ?></option>
+                    <?php endforeach; ?>
+                </optgroup>
+                <?php endif; ?>
+                <?php if (!empty($staff)): ?>
+                <optgroup label="Personel">
+                    <?php foreach ($staff as $s): ?>
+                    <option value="<?= $s['id'] ?>|staff"><?= htmlspecialchars($s['name']) ?></option>
+                    <?php endforeach; ?>
+                </optgroup>
+                <?php endif; ?>
             </select>
         </div>
     </div>
@@ -285,11 +301,10 @@ $defaultPartnerId = !empty($partners) ? $partners[0]['id'] : 0;
 </div>
 
 <script>
-const CATS         = <?= $catJson ?>;
-const PARTNERS     = <?= $partnerJson ?>;
-const DEF_CAT_ID   = <?= $defaultCatId ?>;
-const DEF_PART_ID  = <?= $defaultPartnerId ?>;
-const STORAGE_KEY  = 'qi_messages_v2';
+const CATS        = <?= $catJson ?>;
+const PEOPLE      = <?= $peopleJson ?>;   // [{id, name, kind:'partner'|'staff'}]
+const DEF_CAT_ID  = <?= $defaultCatId ?>;
+const STORAGE_KEY = 'qi_messages_v2';
 
 let messages  = [];
 let msgIdSeq  = 0;
@@ -316,21 +331,24 @@ function detectType(text) {
     return /avans/i.test(text) ? 'advance' : 'expense';
 }
 
-// Metindeki ilk kelimeyi partner adlarıyla eşleştir
-// "400 Buğra avans" → notes="Buğra avans" → ilk token "Buğra" → partner id
-function detectPartner(notes) {
-    if (!notes) return DEF_PART_ID;
+// Hem partners hem staff listesinde isim ara
+// "400 Buğra avans" → "Buğra" → {id, kind:'partner'} veya {id, kind:'staff'}
+function detectPerson(notes) {
+    if (!notes || !PEOPLE.length) return PEOPLE[0] || null;
     const lower = notes.toLowerCase();
-    // Önce tam eşleşme dene
-    for (const p of PARTNERS) {
-        if (lower.includes(p.name.toLowerCase())) return p.id;
+
+    // 1. Tam ad eşleşmesi (longer names first to avoid substring false match)
+    const sorted = [...PEOPLE].sort((a,b) => b.name.length - a.name.length);
+    for (const p of sorted) {
+        if (lower.includes(p.name.toLowerCase())) return p;
     }
-    // İlk kelimeyle kısmi eşleşme dene
+    // 2. İlk kelimeyle kısmi eşleşme
     const firstWord = notes.split(/\s+/)[0].toLowerCase();
-    for (const p of PARTNERS) {
-        if (p.name.toLowerCase().startsWith(firstWord) || firstWord.startsWith(p.name.toLowerCase())) return p.id;
+    for (const p of sorted) {
+        const pn = p.name.toLowerCase();
+        if (pn.startsWith(firstWord) || firstWord.startsWith(pn)) return p;
     }
-    return DEF_PART_ID;
+    return PEOPLE[0] || null;
 }
 
 function parseMsg(text) {
@@ -351,10 +369,21 @@ function sendMsg() {
     const parts = raw.split(/\s*,\s*(?=\S)/);
     parts.forEach(part => {
         part = part.trim(); if (!part) return;
-        const parsed    = parseMsg(part);
-        const type      = detectType(part);
-        const partnerId = type === 'advance' ? detectPartner(parsed.notes) : DEF_PART_ID;
-        messages.push({ id: ++msgIdSeq, text: part, amount: parsed.amount, notes: parsed.notes, type, partnerId, ts: Date.now() });
+        const parsed = parseMsg(part);
+        const type   = detectType(part);
+        let person   = null;
+        if (type === 'advance') person = detectPerson(parsed.notes);
+        // advance_partner veya advance_staff tipini person.kind'dan türet
+        const finalType = type === 'advance' && person ? 'advance_' + person.kind : type;
+        messages.push({
+            id: ++msgIdSeq, text: part,
+            amount: parsed.amount, notes: parsed.notes,
+            type: finalType,
+            personId:   person ? person.id   : null,
+            personKind: person ? person.kind : null,
+            personName: person ? person.name : null,
+            ts: Date.now()
+        });
     });
 
     save(); renderAll();
@@ -372,21 +401,16 @@ function fmtTime(ts) { const d=new Date(ts); return String(d.getHours()).padStar
 function fmtMoney(n) { return '₺'+n.toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function escHtml(s)  { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-function partnerName(id) {
-    const p = PARTNERS.find(p => p.id == id);
-    return p ? p.name : '';
-}
-
 function renderAll() {
     const area = document.getElementById('chatArea');
     area.innerHTML = messages.map(m => {
-        const isAdv   = m.type === 'advance';
+        const isAdv   = m.type.startsWith('advance');
         const amtHtml = m.amount > 0 ? `<span class="qi-bubble-amount">${fmtMoney(m.amount)}</span>` : '';
-        // Avans balonunda → ortak adı rozeti göster
         let pill = '';
         if (isAdv) {
-            const pName = partnerName(m.partnerId);
-            pill = `<span class="qi-type-pill pill-avans">AVANS${pName ? ' · ' + escHtml(pName) : ''}</span>`;
+            const label = m.type === 'advance_staff' ? 'PERSONEL AVANS' : 'AVANS';
+            const pName = m.personName || '';
+            pill = `<span class="qi-type-pill pill-avans">${label}${pName ? ' · ' + escHtml(pName) : ''}</span>`;
         }
         const notesTxt = escHtml(m.notes || (m.amount ? '' : m.text));
         return `<div class="qi-bubble-wrap">
@@ -405,15 +429,47 @@ function renderAll() {
 /* ── Panel ── */
 let panelRowSeq = 0;
 
-function catOptions(selId) { return CATS.map(c=>`<option value="${c.id}" ${c.id==selId?'selected':''}>${c.name}</option>`).join(''); }
-function partnerOptions(selId) { return PARTNERS.map(p=>`<option value="${p.id}" ${p.id==selId?'selected':''}>${p.name}</option>`).join(''); }
+function catOptions(selId) {
+    return CATS.map(c=>`<option value="${c.id}" ${c.id==selId?'selected':''}>${c.name}</option>`).join('');
+}
 
-function makeSelectHtml(type, partnerId) {
-    if (type === 'advance') {
-        const pid = partnerId || DEF_PART_ID;
-        return `<select class="psel ppartner" onchange="recalc()">${partnerOptions(pid)}</select>`;
+// Birleşik kişi seçici: optgroup Ortaklar / Personel, değer = "id|kind"
+function personOptions(selId, selKind) {
+    const partners = PEOPLE.filter(p=>p.kind==='partner');
+    const staff    = PEOPLE.filter(p=>p.kind==='staff');
+    let html = '';
+    if (partners.length) {
+        html += '<optgroup label="Ortaklar">';
+        partners.forEach(p => {
+            const sel = (p.id==selId && selKind==='partner') ? 'selected' : '';
+            html += `<option value="${p.id}|partner" ${sel}>${p.name}</option>`;
+        });
+        html += '</optgroup>';
+    }
+    if (staff.length) {
+        html += '<optgroup label="Personel">';
+        staff.forEach(p => {
+            const sel = (p.id==selId && selKind==='staff') ? 'selected' : '';
+            html += `<option value="${p.id}|staff" ${sel}>${p.name}</option>`;
+        });
+        html += '</optgroup>';
+    }
+    return html;
+}
+
+function makeSelectHtml(type, personId, personKind) {
+    if (type.startsWith('advance')) {
+        return `<select class="psel pperson" onchange="onPersonChange(this)">${personOptions(personId, personKind)}</select>`;
     }
     return `<select class="psel pcat" onchange="recalc()">${catOptions(DEF_CAT_ID)}</select>`;
+}
+
+function onPersonChange(sel) {
+    // Güncelle tr'nin data-type'ını seçilen kind'a göre
+    const tr = sel.closest('tr');
+    const [, kind] = sel.value.split('|');
+    tr.dataset.type = 'advance_' + kind;
+    recalc();
 }
 
 function openPanel() {
@@ -421,9 +477,9 @@ function openPanel() {
     panelRowSeq = 0;
     const tbody = document.getElementById('panelBody');
     tbody.innerHTML = messages.map(m => {
-        const id  = ++panelRowSeq;
-        const isAdv = m.type === 'advance';
-        return `<tr id="pr-${id}" data-excluded="0" data-type="${m.type}" data-partner-id="${m.partnerId||DEF_PART_ID}" class="${isAdv?'is-adv':''}">
+        const id    = ++panelRowSeq;
+        const isAdv = m.type.startsWith('advance');
+        return `<tr id="pr-${id}" data-excluded="0" data-type="${m.type}" class="${isAdv?'is-adv':''}">
             <td style="color:var(--text-muted);font-size:11px;text-align:center;">${id}</td>
             <td>
                 <div class="type-toggle">
@@ -433,7 +489,7 @@ function openPanel() {
             </td>
             <td><input class="pamt" type="text" value="${m.amount>0?m.amount:''}" oninput="recalc()" inputmode="decimal" placeholder="0"></td>
             <td><input class="pnotes" type="text" value="${escHtml(m.notes||(m.amount?'':m.text))}"></td>
-            <td id="psel-${id}">${makeSelectHtml(m.type, m.partnerId)}</td>
+            <td id="psel-${id}">${makeSelectHtml(m.type, m.personId, m.personKind)}</td>
             <td><button type="button" class="pex" onclick="toggleExc(${id})" title="Hariç tut">×</button></td>
         </tr>`;
     }).join('');
@@ -443,18 +499,18 @@ function openPanel() {
 }
 
 function setType(id, type) {
-    const tr = document.getElementById('pr-' + id);
-    tr.dataset.type = type;
+    const tr    = document.getElementById('pr-' + id);
     const isAdv = type === 'advance';
+    // advance → advance_partner (varsayılan) veya expense
+    const finalType = isAdv ? 'advance_partner' : 'expense';
+    tr.dataset.type = finalType;
     tr.classList.toggle('is-adv', isAdv);
-    // toggle buttons
     tr.querySelectorAll('.type-btn').forEach(btn => {
         btn.classList.remove('active-exp','active-adv');
         if (btn.textContent.trim() === 'Gider' && !isAdv) btn.classList.add('active-exp');
         if (btn.textContent.trim() === 'Avans' && isAdv)  btn.classList.add('active-adv');
     });
-    const storedPid = parseInt(tr.dataset.partnerId) || DEF_PART_ID;
-    document.getElementById('psel-' + id).innerHTML = makeSelectHtml(type, storedPid);
+    document.getElementById('psel-' + id).innerHTML = makeSelectHtml(finalType, null, null);
     recalc();
 }
 
@@ -470,8 +526,17 @@ function toggleExc(id) {
     recalc();
 }
 
-function applyDefaultCat()     { const v=document.getElementById('pDefaultCat').value;     document.querySelectorAll('#panelBody .pcat').forEach(s=>s.value=v); }
-function applyDefaultPartner() { const v=document.getElementById('pDefaultPartner').value; document.querySelectorAll('#panelBody .ppartner').forEach(s=>s.value=v); }
+function applyDefaultCat() {
+    const v = document.getElementById('pDefaultCat').value;
+    document.querySelectorAll('#panelBody .pcat').forEach(s => s.value = v);
+}
+function applyDefaultPerson() {
+    const v = document.getElementById('pDefaultPerson').value;
+    document.querySelectorAll('#panelBody .pperson').forEach(s => {
+        s.value = v;
+        onPersonChange(s);
+    });
+}
 
 function recalc() {
     let total=0, count=0;
@@ -509,11 +574,12 @@ function buildAndSubmit(e) {
         mk(`items[${idx}][notes]`,  notes);
         mk(`items[${idx}][type]`,   type);
 
-        if (type === 'advance') {
-            const partnerId = tr.querySelector('.ppartner')?.value||'';
-            mk(`items[${idx}][partner_id]`, partnerId);
+        if (type.startsWith('advance')) {
+            const raw  = tr.querySelector('.pperson')?.value || '';  // "id|kind"
+            const [pid] = raw.split('|');
+            mk(`items[${idx}][person_id]`, pid);
         } else {
-            const catId = tr.querySelector('.pcat')?.value||'';
+            const catId = tr.querySelector('.pcat')?.value || '';
             mk(`items[${idx}][category_id]`, catId);
         }
         idx++;

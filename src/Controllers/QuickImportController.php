@@ -19,9 +19,14 @@ class QuickImportController {
             "SELECT id, name FROM expense_categories WHERE is_active = 1 ORDER BY name ASC"
         );
 
-        // Avans ortakları (kasa hariç)
+        // Ortak avanslıları (kasa hariç)
         $partners = Database::fetchAll(
             "SELECT id, name FROM partners WHERE is_active = 1 AND is_cash_reserve = 0 ORDER BY sort_order, name"
+        );
+
+        // Personel (aktif)
+        $staff = Database::fetchAll(
+            "SELECT id, name FROM staff WHERE is_active = 1 ORDER BY name ASC"
         );
 
         $pageTitle   = 'Hızlı Gider Girişi';
@@ -58,14 +63,14 @@ class QuickImportController {
 
         $count = 0;
         foreach ($items as $item) {
-            $amount  = $this->parseTRAmount((string)($item['amount'] ?? ''));
-            $type    = $item['type'] ?? 'expense'; // 'expense' | 'advance'
-            $notes   = trim($item['notes'] ?? '');
+            $amount     = $this->parseTRAmount((string)($item['amount'] ?? ''));
+            $type       = $item['type'] ?? 'expense';  // expense | advance_partner | advance_staff
+            $notes      = trim($item['notes'] ?? '');
 
             if ($amount <= 0) continue;
 
-            if ($type === 'advance') {
-                $partnerId = (int)($item['partner_id'] ?? 0);
+            if ($type === 'advance_partner') {
+                $partnerId = (int)($item['person_id'] ?? 0);
                 if (!$partnerId) continue;
                 Database::insert('advances', [
                     'month_id'     => $entry['month_id'],
@@ -74,6 +79,29 @@ class QuickImportController {
                     'amount'       => $amount,
                     'description'  => $notes,
                 ]);
+
+            } elseif ($type === 'advance_staff') {
+                $staffId = (int)($item['person_id'] ?? 0);
+                if (!$staffId) continue;
+                // Mevcut kayıt var mı?
+                $existing = Database::fetch(
+                    "SELECT id FROM staff_expenses WHERE daily_entry_id = ? AND staff_id = ? AND is_salary = 1",
+                    [$entryId, $staffId]
+                );
+                if ($existing) {
+                    Database::query(
+                        "UPDATE staff_expenses SET amount = amount + ? WHERE id = ?",
+                        [$amount, $existing['id']]
+                    );
+                } else {
+                    Database::insert('staff_expenses', [
+                        'daily_entry_id' => $entryId,
+                        'staff_id'       => $staffId,
+                        'amount'         => $amount,
+                        'is_salary'      => 1,
+                    ]);
+                }
+
             } else {
                 $catId = (int)($item['category_id'] ?? 0);
                 if (!$catId) continue;
