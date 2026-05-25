@@ -60,6 +60,10 @@
                 <i data-lucide="clipboard-list"></i>
                 <span>Yapılacaklar</span>
             </a>
+            <a href="?page=quick_import" class="nav-item <?= ($currentPage ?? '') === 'quick_import' ? 'active' : '' ?>">
+                <i data-lucide="zap"></i>
+                <span>Hızlı Gider</span>
+            </a>
             <a href="?page=staff" class="nav-item <?= ($currentPage ?? '') === 'staff' ? 'active' : '' ?>">
                 <i data-lucide="users"></i>
                 <span>Personel</span>
@@ -107,7 +111,7 @@
                 <div class="version-badge-wrap" id="versionWrap">
                     <button class="version-badge" id="versionBtn" onclick="toggleChangelog()" title="Sürüm Geçmişi">
                         <i data-lucide="tag" style="width:12px;height:12px;"></i>
-                        v2.6.0
+                        v2.7.0
                     </button>
 
                     <div class="changelog-dropdown" id="changelogDropdown">
@@ -119,6 +123,19 @@
 
                             <?php
                             $changelog = [
+                                [
+                                    'version' => 'v2.7.0',
+                                    'date'    => '25 Mayıs 2026',
+                                    'type'    => 'feature',
+                                    'label'   => 'Yeni Özellik',
+                                    'items'   => [
+                                        'Hızlı Gider sekmesi eklendi — WhatsApp metnini yapıştır, parse et, kaydet',
+                                        '"2500 mazot", "316,40 komisyon" gibi formatları otomatik ayrıştırır',
+                                        'Her satırda tutar, açıklama ve kategori ayrı ayrı düzenlenebilir',
+                                        'İstenmeyen satırlar × butonu ile hariç tutulabilir, satır eklenebilir',
+                                        'Kaydet sonrası doğrudan Günlük Girişlere yönlendiriyor',
+                                    ],
+                                ],
                                 [
                                     'version' => 'v2.6.0',
                                     'date'    => '25 Mayıs 2026',

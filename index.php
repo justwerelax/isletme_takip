@@ -34,7 +34,8 @@ $controllerMap = [
     'staff'     => 'StaffController',
     'settings'  => 'SettingsController',
     'setup'     => 'SetupController',
-    'export'    => 'ExportController',
+    'export'       => 'ExportController',
+    'quick_import' => 'QuickImportController',
 ];
 
 $controllerName = $controllerMap[$page] ?? null;
